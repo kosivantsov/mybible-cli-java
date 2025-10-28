@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.ResourceBundle;
@@ -53,6 +54,21 @@ import picocli.CommandLine.Spec;
 )
 public class Main implements Callable<Integer> {
 
+    static {
+        // This block runs before main() and ensures the locale is set
+        // for the entire application, including all Swing components.
+        String language = System.getProperty("user.language");
+        String country = System.getProperty("user.country");
+
+        if (language != null && !language.isEmpty()) {
+            if (country != null && !country.isEmpty()) {
+                Locale.setDefault(new Locale(language, country));
+            } else {
+                Locale.setDefault(new Locale(language));
+            }
+        }
+        // If the properties are not set, it will just use the JVM's default.
+    }
     private static final ResourceBundle bundle = ResourceBundle.getBundle("messages");
 
     @Override
