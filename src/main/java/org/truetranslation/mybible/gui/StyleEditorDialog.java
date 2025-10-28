@@ -21,7 +21,7 @@ public class StyleEditorDialog extends JDialog {
 
     public StyleEditorDialog(Dialog owner, TextStyle originalStyle, ResourceBundle bundle, Color previewBackground) {
         super(owner, bundle.getString("dialog.title.styleEditor"), true);
-        this.editedStyle = new TextStyle(originalStyle); // Work on a copy
+        this.editedStyle = new TextStyle(originalStyle);
 
         initComponents(bundle, previewBackground);
         updatePreview();
@@ -151,7 +151,6 @@ public class StyleEditorDialog extends JDialog {
         StyleConstants.setBold(attrs, (editedStyle.fontStyle & Font.BOLD) != 0);
         StyleConstants.setItalic(attrs, (editedStyle.fontStyle & Font.ITALIC) != 0);
         
-        // --- FIX for NullPointerException ---
         // Use the pane's foreground color as a fallback if the style's color is null.
         Color fg = (editedStyle.color != null) ? editedStyle.color : previewPane.getForeground();
         StyleConstants.setForeground(attrs, fg);

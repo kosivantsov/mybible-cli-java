@@ -24,7 +24,7 @@ public class LocalizationManager {
         try {
             return bundle.getString(key);
         } catch (MissingResourceException e) {
-            return key; // Fallback to key name if not found
+            return key;
         }
     }
 

@@ -1,9 +1,6 @@
 package org.truetranslation.mybible.core.model;
 
-/**
- * A simple Plain Old Java Object (POJO) representing the data structure
- * for a single verse, optimized for GUI consumption and JSON serialization.
- */
+// A simple POJO representing the data structure for a single verse
 public class GuiVerse {
     private final int bookNumber;
     private final String defaultFullBookName;
@@ -28,7 +25,4 @@ public class GuiVerse {
         this.rawVerseText = rawVerseText;
         this.moduleName = moduleName;
     }
-
-    // Getters can be added here if needed for other parts of the Java application,
-    // but they are not strictly necessary for Gson serialization.
 }

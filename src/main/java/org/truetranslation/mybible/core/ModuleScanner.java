@@ -28,9 +28,7 @@ public class ModuleScanner {
     );
 
 
-    /**
-     * A simple data class representing a MyBible module's metadata.
-     */
+    // A simple data class representing a MyBible module's metadata.
     public static class Module {
         private final String language;
         private final String name;
@@ -77,9 +75,7 @@ public class ModuleScanner {
         return modules;
     }
 
-    /**
-     * Checks if a filename contains any of the excluded substrings.
-     */
+    // Checks if a filename contains any of the excluded substrings.
     private boolean isExcluded(String fileName) {
         for (String substring : EXCLUDED_SUBSTRINGS) {
             if (fileName.contains(substring)) {
@@ -89,9 +85,7 @@ public class ModuleScanner {
         return false;
     }
 
-    /**
-     * Extracts metadata and formats the description.
-     */
+    // Extracts metadata and formats the description.
     private Optional<Module> getModuleInfo(Path modulePath) {
         String url = "jdbc:sqlite:" + modulePath.toAbsolutePath().toString();
         String defaultName = modulePath.getFileName().toString().replaceAll("(?i)\\.sqlite3$", "");
@@ -105,10 +99,7 @@ public class ModuleScanner {
         return Optional.of(new Module(language, name, description, modulePath));
     }
 
-    /**
-     * Helper method to get a single field from the module's info table.
-     * This tries multiple common column names for the key for maximum compatibility.
-     */
+    // Helper method to get a single field from the module's info table.
     private Optional<String> getInfoField(String url, String fieldName) {
         String[] keyColumns = {"key", "name"};
         for (String keyColumn : keyColumns) {

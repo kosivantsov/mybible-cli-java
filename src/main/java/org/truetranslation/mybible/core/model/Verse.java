@@ -1,8 +1,7 @@
 package org.truetranslation.mybible.core.model;
 
-/**
- * A simple data class representing a single Bible verse with its text.
- */
+
+// A simple data class representing a single Bible verse with its text.
 public class Verse {
     private final int bookNumber;
     private final int chapter;

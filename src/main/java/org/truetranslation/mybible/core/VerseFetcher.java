@@ -49,7 +49,6 @@ public class VerseFetcher {
 
     private List<Verse> queryVerses(int book, Integer startChapter, Integer startVerse, Integer endChapter, Integer endVerse) throws SQLException {
         List<Verse> verses = new ArrayList<>();
-        // This query correctly handles precise start and end boundaries.
         String sql = "SELECT book_number, chapter, verse, text FROM verses WHERE book_number = ? " +
                      "AND (chapter > ? OR (chapter = ? AND verse >= ?)) " +
                      "AND (chapter < ? OR (chapter = ? AND verse <= ?)) " +

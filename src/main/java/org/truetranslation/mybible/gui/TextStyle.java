@@ -7,7 +7,7 @@ public class TextStyle {
     public int fontStyle;
     public int fontSize;
     public Color color;
-    public Color background; // This field is no longer used for rendering but kept for config compatibility
+    public Color background;
     public boolean superscript;
     public boolean subscript;
 

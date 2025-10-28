@@ -1,6 +1,5 @@
 package org.truetranslation.mybible.cli;
 
-
 import com.formdev.flatlaf.FlatLightLaf;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

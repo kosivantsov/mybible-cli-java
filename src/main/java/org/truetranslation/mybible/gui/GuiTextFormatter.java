@@ -85,7 +85,6 @@ public class GuiTextFormatter {
     }
     
     private void appendPlainText(StyledDocument doc, String rawText, boolean multiline) throws BadLocationException {
-        // --- Corrected Logic ---
         String temp = rawText
             .replaceAll("\\[\\d+\\]", "")
             .replaceAll("(?i)<f>.*?</f>|</?t>|~|@|@[^ ]+? ", " ")
@@ -100,7 +99,6 @@ public class GuiTextFormatter {
             temp = temp.replace("<pb/>", " ");
         }
 
-        // Now remove all other tags after handling pb
         temp = temp.replaceAll("<[^>]+>", " ");
 
         String cleaned = Arrays.stream(temp.split("\n"))
@@ -153,7 +151,7 @@ public class GuiTextFormatter {
                     if (styleStack.size() > 1) {
                         styleStack.pop();
                     }
-                } else { // Opening tag
+                } else {
                     Style current = styleStack.peek();
                     Style newStyle = doc.addStyle(null, current);
                     

@@ -43,7 +43,6 @@ public class OutputFormatter {
 
     private String createMultiLinePlainText(String text) {
         String temp = text;
-        // --- FIX: Remove footnotes for %t ---
         temp = temp.replaceAll("\\[\\d+\\]", " ");
         temp = temp.replaceAll("(?i)<[SGH]>\\s*[0-9]+\\s*</[SGH]>", " ");
         if (temp.trim().startsWith("<pb/>")) {

@@ -23,7 +23,7 @@ public class ReferenceParser {
 
     public static class RangeWithCount extends Range {
         public final int verseCount;
-        public final int bookStartOffset; // New field for GUI
+        public final int bookStartOffset;
 
         public RangeWithCount(Reference start, Reference end, int verseCount, int bookStartOffset) {
             super(start, end);

@@ -24,9 +24,8 @@ public class VerseIndexManager {
     private static final Gson GSON = new Gson();
     private final Map<String, Map<Integer, Integer>> indexCache = new ConcurrentHashMap<>();
     private final LocalizationManager loc = LocalizationManager.getInstance();
-    private final int verbosity; // NEW: Field to hold verbosity level
+    private final int verbosity;
 
-    // MODIFIED: Constructor now accepts the verbosity level
     public VerseIndexManager(ConfigManager configManager, int verbosity) {
         this.moduleDataDir = configManager.getDefaultConfigDir().resolve("moduledata");
         this.verbosity = verbosity;
@@ -64,7 +63,6 @@ public class VerseIndexManager {
         String url = "jdbc:sqlite:" + modulePath.toAbsolutePath();
         String sql = "SELECT book_number, chapter, verse FROM verses";
         
-        // MODIFIED: This message now respects the verbosity level
         if (this.verbosity > 0) {
             System.out.println(loc.getString("msg.cache.generating", moduleName));
         }
@@ -84,7 +82,6 @@ public class VerseIndexManager {
             return new ConcurrentHashMap<>();
         }
         
-        // MODIFIED: This message now respects the verbosity level
         if (this.verbosity > 0) {
             System.out.println(loc.getString("msg.cache.complete"));
         }

@@ -4,7 +4,7 @@ public class Reference {
     private final int book;
     private final int chapter;
     private final int verse;
-    private final String bookName; // The actual string used for the book name
+    private final String bookName;
 
     public Reference(int book, int chapter, int verse, String bookName) {
         this.book = book;
@@ -16,7 +16,7 @@ public class Reference {
     public int getBook() { return book; }
     public int getChapter() { return chapter; }
     public int getVerse() { return verse; }
-    public String getBookName() { return bookName; } // Getter for the book name
+    public String getBookName() { return bookName; }
 
     @Override
     public String toString() {

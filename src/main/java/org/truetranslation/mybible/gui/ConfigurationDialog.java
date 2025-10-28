@@ -55,7 +55,7 @@ public class ConfigurationDialog extends JDialog {
 
         setTitle(bundle.getString("dialog.title.configure"));
         setLayout(new BorderLayout(10, 10));
-        
+
         JPanel mainPanel = new JPanel(new GridBagLayout());
         mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         GridBagConstraints gbc = new GridBagConstraints();
@@ -75,7 +75,7 @@ public class ConfigurationDialog extends JDialog {
         addStyleRow(mainPanel, 7, bundle.getString("label.wordsOfJesus"), "wordsOfJesus");
         addStyleRow(mainPanel, 8, bundle.getString("label.defaultText"), "defaultText");
         addStyleRow(mainPanel, 9, bundle.getString("label.infoText"), "infoText");
-        
+
         gbc.gridy = 10; gbc.gridx = 0; gbc.gridwidth = 1; gbc.weightx = 0;
         mainPanel.add(new JLabel(bundle.getString("label.backgroundColor")), gbc);
         gbc.gridx = 1; gbc.gridwidth = 1;
@@ -88,6 +88,13 @@ public class ConfigurationDialog extends JDialog {
         JComboBox<ThemeInfo> lafComboBox = new JComboBox<>(THEMES.toArray(new ThemeInfo[0]));
         THEMES.stream().filter(t -> t.className.equals(config.lookAndFeelClassName)).findFirst().ifPresent(lafComboBox::setSelectedItem);
         mainPanel.add(lafComboBox, gbc);
+        
+        lafComboBox.addActionListener(e -> {
+            ThemeInfo selectedTheme = (ThemeInfo) lafComboBox.getSelectedItem();
+            if (selectedTheme != null) {
+                previewLookAndFeel(selectedTheme.className);
+            }
+        });
 
         add(mainPanel, BorderLayout.CENTER);
 
@@ -98,7 +105,7 @@ public class ConfigurationDialog extends JDialog {
         add(buttonPanel, BorderLayout.SOUTH);
 
         colorButton.addActionListener(e -> {
-            Color newColor = JColorChooser.showDialog(this, bundle.getString("button.chooseColor"), chosenBackgroundColor);
+            Color newColor = JColorChooser.showDialog(this, bundle.getString("dialog.title.chooseColor"), chosenBackgroundColor);
             if (newColor != null) chosenBackgroundColor = newColor;
         });
 
@@ -113,16 +120,12 @@ public class ConfigurationDialog extends JDialog {
             dispose();
         });
 
-        // --- ADDED METHOD CALL ---
         initEscapeToClose();
 
         pack();
         setLocationRelativeTo(owner);
     }
     
-    /**
-     * Registers the Escape key to close the dialog.
-     */
     private void initEscapeToClose() {
         JRootPane rootPane = this.getRootPane();
         InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
@@ -175,13 +178,43 @@ public class ConfigurationDialog extends JDialog {
         panel.add(configureButton, gbc);
     }
     
+    /**
+     * Applies the chosen Look and Feel to the owner frame permanently.
+     */
     private void applyLookAndFeel() {
         try {
             UIManager.setLookAndFeel(config.lookAndFeelClassName);
             SwingUtilities.updateComponentTreeUI(owner);
-            SwingUtilities.updateComponentTreeUI(this);
+            
+            // Use validate() and repaint() instead of pack() to prevent resizing.
+            owner.validate();
+            owner.repaint();
+
         } catch (Exception ex) {
             ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Applies a Look and Feel temporarily to this dialog for preview purposes,
+     * without affecting the rest of the application.
+     * @param lafClassName The class name of the Look and Feel to preview.
+     */
+    private void previewLookAndFeel(String lafClassName) {
+        LookAndFeel originalLaf = UIManager.getLookAndFeel();
+        try {
+            UIManager.setLookAndFeel(lafClassName);
+            SwingUtilities.updateComponentTreeUI(this);
+            pack();
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        } finally {
+            try {
+                UIManager.setLookAndFeel(originalLaf);
+            } catch (UnsupportedLookAndFeelException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

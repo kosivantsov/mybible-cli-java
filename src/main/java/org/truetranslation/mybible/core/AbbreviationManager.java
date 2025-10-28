@@ -23,9 +23,8 @@ public class AbbreviationManager {
     private final Path moduleDataDir;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private final LocalizationManager loc = LocalizationManager.getInstance();
-    private final int verbosity; // NEW
+    private final int verbosity;
 
-    // MODIFIED: Constructor now accepts verbosity
     public AbbreviationManager(ConfigManager configManager, int verbosity) {
         this.moduleDataDir = configManager.getDefaultConfigDir().resolve("moduledata");
         this.verbosity = verbosity;
@@ -37,13 +36,11 @@ public class AbbreviationManager {
             return abbrFile;
         }
 
-        // MODIFIED: Print message only if verbose
         if (this.verbosity > 0) {
             System.out.println(loc.getString("msg.cache.generatingAbbrs", moduleName));
         }
         extractAbbreviations(modulePath, abbrFile);
         
-        // MODIFIED: Print message only if verbose
         if (this.verbosity > 0) {
             System.out.println(loc.getString("msg.cache.completeAbbrs", abbrFile));
         }

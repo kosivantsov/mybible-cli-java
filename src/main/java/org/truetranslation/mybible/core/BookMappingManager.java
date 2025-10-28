@@ -14,7 +14,6 @@ public class BookMappingManager {
 
     /**
      * Gets the default BookMapper by ensuring default_mapping.json exists.
-     * This is a convenience method that calls the main loader with a null prefix.
      */
     public static BookMapper getBookMapper(ConfigManager configManager) throws IOException {
         return getBookMapper(configManager, null);

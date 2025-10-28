@@ -54,7 +54,7 @@ public class GuiConfigManager {
                 config = new GuiConfig();
             }
         } catch (IOException e) {
-            config = new GuiConfig(); // Create default config if file doesn't exist
+            config = new GuiConfig();
         }
     }
 
