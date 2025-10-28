@@ -2,7 +2,7 @@
 
 This is a cross-platform Java application for getting text from [MyBible](https://mybible.zone) modules (`.sqlite3` files).
 
-## Motivation
+## Purpose and Motivation
 
 This project was inspired by [`diatheke`](https://wiki.crosswire.org/Frontends:Diatheke), the standard command-line tool for [Crosswire Sword](http://www.crosswire.org/sword/index.jsp) modules. While powerful, `diatheke` works only with Crosswire Sword modules and does not support the [MyBible format](https://mybible.zone/modules/), which has an extensive library of high-quality modules.
 
