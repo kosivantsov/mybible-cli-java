@@ -14,21 +14,24 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Map;
-import java.util.TreeMap;
+import java.text.MessageFormat;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
+import java.util.ResourceBundle;
+import java.util.TreeMap;
 
 public class VerseIndexManager {
 
     private final Path moduleDataDir;
     private static final Gson GSON = new Gson();
     private final Map<String, Map<Integer, Integer>> indexCache = new ConcurrentHashMap<>();
-    private final LocalizationManager loc = LocalizationManager.getInstance();
+    private final ResourceBundle bundle;
     private final int verbosity;
 
     public VerseIndexManager(ConfigManager configManager, int verbosity) {
         this.moduleDataDir = configManager.getDefaultConfigDir().resolve("moduledata");
         this.verbosity = verbosity;
+        this.bundle = ResourceBundle.getBundle("messages");
     }
 
     public Map<Integer, Integer> getVerseIndex(String moduleName, Path modulePath) {
@@ -47,12 +50,14 @@ public class VerseIndexManager {
                     return index;
                 }
             } catch (JsonSyntaxException e) {
-                System.err.println(loc.getString("msg.cache.corrupt"));
-                try { Files.delete(indexFile); } catch (IOException ioException) {
-                    System.err.println(loc.getString("msg.cache.deleteFailed", ioException.getMessage()));
+                System.err.println(bundle.getString("msg.cache.corrupt"));
+                try {
+                    Files.delete(indexFile);
+                } catch (IOException ioException) {
+                    System.err.println(MessageFormat.format(bundle.getString("msg.cache.deleteFailed"), ioException.getMessage()));
                 }
             } catch (IOException e) {
-                System.err.println(loc.getString("msg.cache.readError", e.getMessage()));
+                System.err.println(MessageFormat.format(bundle.getString("msg.cache.readError"), e.getMessage()));
             }
         }
         return generateAndCacheIndex(moduleName, modulePath);
@@ -64,7 +69,7 @@ public class VerseIndexManager {
         String sql = "SELECT book_number, chapter, verse FROM verses";
         
         if (this.verbosity > 0) {
-            System.out.println(loc.getString("msg.cache.generating", moduleName));
+            System.out.println(MessageFormat.format(bundle.getString("msg.cache.generating"), moduleName));
         }
         
         try (Connection conn = DriverManager.getConnection(url);
@@ -78,12 +83,12 @@ public class VerseIndexManager {
                 tempIndex.computeIfAbsent(book, k -> new TreeMap<>()).merge(chapter, verse, Integer::max);
             }
         } catch (SQLException e) {
-            System.err.println(loc.getString("error.unexpected") + " " + e.getMessage());
+            System.err.println(MessageFormat.format(bundle.getString("error.unexpected"), e.getMessage()));
             return new ConcurrentHashMap<>();
         }
         
         if (this.verbosity > 0) {
-            System.out.println(loc.getString("msg.cache.complete"));
+            System.out.println(bundle.getString("msg.cache.complete"));
         }
 
         Map<Integer, Integer> finalIndex = new TreeMap<>();

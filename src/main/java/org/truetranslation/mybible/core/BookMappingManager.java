@@ -5,12 +5,14 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.text.MessageFormat;
+import java.util.ResourceBundle;
 
 public class BookMappingManager {
 
     private static final String DEFAULT_MAPPING_FILENAME = "default_mapping.json";
 
-    private static final LocalizationManager loc = LocalizationManager.getInstance();
+    private static final ResourceBundle bundle = ResourceBundle.getBundle("messages");
 
     /**
      * Gets the default BookMapper by ensuring default_mapping.json exists.
@@ -39,7 +41,8 @@ public class BookMappingManager {
                 mappingFile = customMappingFile;
             } else {
                 if (verbosity > 0) {
-                    System.out.println(loc.getString("info.mapping.fallback", customMappingFile.getFileName().toString()));
+                    String message = MessageFormat.format(bundle.getString("info.mapping.fallback"), customMappingFile.getFileName().toString());
+                    System.out.println(message);
                 }
             }
         }
@@ -52,7 +55,8 @@ public class BookMappingManager {
                 Files.createDirectories(configDir);
                 try (InputStream resourceStream = BookMappingManager.class.getResourceAsStream("/" + DEFAULT_MAPPING_FILENAME)) {
                     if (resourceStream == null) {
-                        throw new IOException(loc.getString("error.mapping.notFoundInResources", DEFAULT_MAPPING_FILENAME));
+                        String message = MessageFormat.format(bundle.getString("error.mapping.notFoundInResources"), DEFAULT_MAPPING_FILENAME);
+                        throw new IOException(message);
                     }
                     Files.copy(resourceStream, mappingFile, StandardCopyOption.REPLACE_EXISTING);
                 }

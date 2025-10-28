@@ -1,15 +1,17 @@
 package org.truetranslation.mybible.core;
 
-import org.truetranslation.mybible.core.model.Book;
-import org.truetranslation.mybible.core.model.Reference;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ResourceBundle;
 import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
+import java.util.TreeMap;
+import org.truetranslation.mybible.core.model.Book;
+import org.truetranslation.mybible.core.model.Reference;
 
 public class ReferenceParser {
 
@@ -45,11 +47,12 @@ public class ReferenceParser {
 
     private final BookMapper bookMapper;
     private final Map<Integer, Integer> verseIndex;
-    private final LocalizationManager loc = LocalizationManager.getInstance();
+    private final ResourceBundle bundle;
 
     public ReferenceParser(BookMapper bookMapper, Map<Integer, Integer> verseIndex) {
         this.bookMapper = bookMapper;
         this.verseIndex = verseIndex;
+        this.bundle = ResourceBundle.getBundle("messages");
     }
 
     public List<RangeWithCount> parseWithCounts(String rawReference) {
@@ -102,7 +105,8 @@ public class ReferenceParser {
             }
 
             if (compareReferences(startRef, endRef) > 0) {
-                System.err.println(loc.getString("parse.error.range.startAfterEnd", formatRef(startRef, startState), formatRef(endRef, state)));
+                String message = MessageFormat.format(bundle.getString("parse.error.range.startAfterEnd"), formatRef(startRef, startState), formatRef(endRef, state));
+                System.err.println(message);
                 return new ArrayList<>();
             }
             finalRanges.add(new Range(startRef, endRef));
@@ -186,12 +190,14 @@ public class ReferenceParser {
                 state.book = bookNum;
             } else { bookNum = state.book; }
             if (bookNum == null || !bookExistsInModule(bookNum)) {
-                 System.err.println(loc.getString("parse.error.bookNotFound", tokens[0]));
+                 String message = MessageFormat.format(bundle.getString("parse.error.bookNotFound"), tokens[0]);
+                 System.err.println(message);
                  return null;
             }
             String[] remainingTokens = Arrays.copyOfRange(tokens, bookTokensCount, tokens.length);
             if (remainingTokens.length > 1) {
-                System.err.println(loc.getString("parse.error.extraTokens", String.join(" ", remainingTokens)));
+                String message = MessageFormat.format(bundle.getString("parse.error.extraTokens"), String.join(" ", remainingTokens));
+                System.err.println(message);
                 return null;
             }
             if (remainingTokens.length == 0) {
@@ -204,11 +210,13 @@ public class ReferenceParser {
                 int verse = Integer.parseInt(cv[1]);
                 int compositeKey = bookNum * 1000 + chapter;
                 if (!verseIndex.containsKey(compositeKey)) {
-                    System.err.println(loc.getString("parse.error.chapterNotFound", chapter, state.bookString));
+                    String message = MessageFormat.format(bundle.getString("parse.error.chapterNotFound"), chapter, state.bookString);
+                    System.err.println(message);
                     return null;
                 }
                 if (verse > verseIndex.get(compositeKey) || verse < 1) {
-                    System.err.println(loc.getString("parse.error.verseNotFound", verse, chapter, state.bookString, verseIndex.get(compositeKey)));
+                    String message = MessageFormat.format(bundle.getString("parse.error.verseNotFound"), verse, chapter, state.bookString, verseIndex.get(compositeKey));
+                    System.err.println(message);
                     return null;
                 }
                 state.chapter = chapter;
@@ -221,7 +229,8 @@ public class ReferenceParser {
                     return new Reference(bookNum, state.chapter, number, state.bookString);
                 } else {
                      if (!verseIndex.containsKey(bookNum * 1000 + number)) {
-                        System.err.println(loc.getString("parse.error.chapterNotFound", number, state.bookString));
+                        String message = MessageFormat.format(bundle.getString("parse.error.chapterNotFound"), number, state.bookString);
+                        System.err.println(message);
                         return null;
                     }
                     state.chapter = number;
@@ -230,7 +239,8 @@ public class ReferenceParser {
                 }
             }
         } catch (NumberFormatException e) {
-            System.err.println(loc.getString("parse.error.invalidFormat", part));
+            String message = MessageFormat.format(bundle.getString("parse.error.invalidFormat"), part);
+            System.err.println(message);
             return null;
         }
     }

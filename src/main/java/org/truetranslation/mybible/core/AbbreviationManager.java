@@ -14,19 +14,22 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 public class AbbreviationManager {
 
     private final Path moduleDataDir;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private final LocalizationManager loc = LocalizationManager.getInstance();
+    private final ResourceBundle bundle;
     private final int verbosity;
 
     public AbbreviationManager(ConfigManager configManager, int verbosity) {
         this.moduleDataDir = configManager.getDefaultConfigDir().resolve("moduledata");
+        this.bundle = ResourceBundle.getBundle("messages");
         this.verbosity = verbosity;
     }
 
@@ -37,12 +40,14 @@ public class AbbreviationManager {
         }
 
         if (this.verbosity > 0) {
-            System.out.println(loc.getString("msg.cache.generatingAbbrs", moduleName));
+            String message = MessageFormat.format(bundle.getString("msg.cache.generatingAbbrs"), moduleName);
+            System.out.println(message);
         }
         extractAbbreviations(modulePath, abbrFile);
-        
+
         if (this.verbosity > 0) {
-            System.out.println(loc.getString("msg.cache.completeAbbrs", abbrFile));
+            String message = MessageFormat.format(bundle.getString("msg.cache.completeAbbrs"), abbrFile);
+            System.out.println(message);
         }
         return abbrFile;
     }
@@ -65,7 +70,7 @@ public class AbbreviationManager {
             GSON.toJson(abbreviations, writer);
         }
     }
-    
+
     public Map<String, List<String>> loadAbbreviations(Path abbrFilePath) throws IOException {
          try (FileReader reader = new FileReader(abbrFilePath.toFile())) {
             Type type = new TypeToken<Map<String, List<String>>>() {}.getType();

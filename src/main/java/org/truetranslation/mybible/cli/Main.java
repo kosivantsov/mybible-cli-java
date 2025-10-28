@@ -3,6 +3,7 @@ package org.truetranslation.mybible.cli;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+
 import java.awt.Desktop;
 import java.io.File;
 import java.io.IOException;
@@ -17,15 +18,8 @@ import java.util.concurrent.Callable;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ResourceBundle;
 import javax.swing.*;
-
-import picocli.CommandLine;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Help;
-import picocli.CommandLine.Model.CommandSpec;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.Parameters;
-import picocli.CommandLine.Spec;
 
 import org.truetranslation.mybible.core.*;
 import org.truetranslation.mybible.core.model.Book;
@@ -34,6 +28,14 @@ import org.truetranslation.mybible.core.model.Reference;
 import org.truetranslation.mybible.core.model.Verse;
 import org.truetranslation.mybible.gui.Gui;
 import org.truetranslation.mybible.gui.GuiConfigManager;
+
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Help;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
+import picocli.CommandLine.Spec;
 
 @Command(
     name = "mybible-cli",
@@ -51,7 +53,7 @@ import org.truetranslation.mybible.gui.GuiConfigManager;
 )
 public class Main implements Callable<Integer> {
 
-    private static final LocalizationManager loc = LocalizationManager.getInstance();
+    private static final ResourceBundle bundle = ResourceBundle.getBundle("messages");
 
     @Override
     public Integer call() {
@@ -68,7 +70,6 @@ public class Main implements Callable<Integer> {
         @Option(names = {"-A", "--self-abbr"}, description = "Use book abbreviations from the module itself for parsing.")
         private boolean useSelfAbbreviations;
         
-        // --- NEW OPTION ---
         @Option(names = {"-a", "--abbr-prefix"}, description = "Use a custom abbreviations mapping file (e.g., <prefix>_mapping.json).")
         private String abbreviationsPrefix;
 
@@ -94,19 +95,19 @@ public class Main implements Callable<Integer> {
             if (moduleName == null || moduleName.isEmpty()) {
                 moduleName = configManager.getLastUsedModule();
                 if (moduleName == null || moduleName.isEmpty()) {
-                    System.err.println(loc.getString("error.module.nameMissing"));
+                    System.err.println(bundle.getString("error.module.nameMissing"));
                     return 1;
                 }
-                if (verbosity > 0) System.out.println(loc.getString("msg.usingLastModule", moduleName));
+                if (verbosity > 0) System.out.println(MessageFormat.format(bundle.getString("msg.usingLastModule"), moduleName));
             }
             String modulesPathStr = configManager.getModulesPath();
             if (modulesPathStr == null || modulesPathStr.isEmpty()) {
-                System.err.println(loc.getString("error.module.notConfigured"));
+                System.err.println(bundle.getString("error.module.notConfigured"));
                 return 1;
             }
             Path modulePath = Paths.get(modulesPathStr, moduleName + ".sqlite3");
             if (!Files.exists(modulePath)) {
-                System.err.println(loc.getString("error.module.notFound", modulePath));
+                System.err.println(MessageFormat.format(bundle.getString("error.module.notFound"), modulePath));
                 return 1;
             }
             VerseFetcher fetcher = null;
@@ -115,7 +116,7 @@ public class Main implements Callable<Integer> {
                 if (saveFormatString != null) {
                     activeFormatString = saveFormatString;
                     configManager.setFormatString(saveFormatString);
-                    if (verbosity > 0) System.out.println(loc.getString("msg.newFormatSaved"));
+                    if (verbosity > 0) System.out.println(bundle.getString("msg.newFormatSaved"));
                 } else if (formatString != null) {
                     activeFormatString = formatString;
                 }
@@ -123,8 +124,6 @@ public class Main implements Callable<Integer> {
                 VerseIndexManager indexManager = new VerseIndexManager(configManager, verbosity);
                 Map<Integer, Integer> verseIndex = indexManager.getVerseIndex(moduleName, modulePath);
 
-                // --- THIS IS THE MODIFIED LINE ---
-                // Load the default or custom book mapper using the prefix.
                 BookMapper defaultBookMapper = BookMappingManager.getBookMapper(configManager, abbreviationsPrefix);
                 
                 BookMapper moduleBookMapper;
@@ -134,7 +133,7 @@ public class Main implements Callable<Integer> {
                     moduleBookMapper = new BookMapper(abbrManager.loadAbbreviations(abbrFile));
                 } catch (Exception e) {
                     if (verbosity > 0) {
-                        System.err.println(loc.getString("parse.error.noModuleAbbrs", e.getMessage()));
+                        System.err.println(MessageFormat.format(bundle.getString("parse.error.noModuleAbbrs"), e.getMessage()));
                     }
                     moduleBookMapper = defaultBookMapper;
                 }
@@ -195,7 +194,7 @@ public class Main implements Callable<Integer> {
                 }
 
             } catch (Exception e) {
-                System.err.println(loc.getString("error.unexpected") + ": " + e.getMessage());
+                System.err.println(MessageFormat.format(bundle.getString("error.unexpected"), e.getMessage()));
                 if (verbosity > 0) e.printStackTrace();
                 return 1;
             } finally {
@@ -227,22 +226,22 @@ public class Main implements Callable<Integer> {
                 CommandLine mainCommand = spec.parent().commandLine();
                 mainCommand.usage(System.out);
                 System.out.println();
-                System.out.println(loc.getString("help.header"));
+                System.out.println(bundle.getString("help.header"));
                 List<String> topics = Arrays.asList("get", "list", "parse", "open", "gui", "format");
                 for (String topicName : topics) {
-                    String description = loc.getString("help.topic." + topicName + ".description");
+                    String description = bundle.getString("help.topic." + topicName + ".description");
                     String formattedLine = String.format("  @|bold %-6s|@ %s", topicName, description);
                     System.out.println(Help.Ansi.AUTO.string(formattedLine));
                 }
                 return 0;
             }
             switch (topic.toLowerCase()) {
-                case "format": System.out.println(loc.getString("help.format.text")); break;
-                case "version": System.out.println(loc.getString("app.version")); break;
+                case "format": System.out.println(bundle.getString("help.format.text")); break;
+                case "version": System.out.println(bundle.getString("app.version")); break;
                 default:
                     CommandLine subCommand = spec.parent().subcommands().get(topic.toLowerCase());
                     if (subCommand != null) { subCommand.usage(System.out); } 
-                    else { System.err.println(loc.getString("help.unknown.topic", topic)); return 1; }
+                    else { System.err.println(MessageFormat.format(bundle.getString("help.unknown.topic"), topic)); return 1; }
             }
             return 0;
         }
@@ -258,15 +257,11 @@ public class Main implements Callable<Integer> {
 
         @Override
         public Integer call() throws InterruptedException {
-            // Use a latch to make the main thread wait for the GUI to close.
             final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
-
             javax.swing.SwingUtilities.invokeLater(() -> {
-                // Pass the initial arguments AND a callback to signal when the GUI closes.
                 Gui gui = new Gui(moduleName, reference, () -> latch.countDown());
                 gui.setVisible(true);
             });
-
             latch.await();
             return 0;
         }
@@ -281,27 +276,27 @@ public class Main implements Callable<Integer> {
             ConfigManager configManager = new ConfigManager();
             if (modulesPath != null) {
                 if (!modulesPath.isDirectory()) {
-                    System.err.println(loc.getString("error.path.invalid"));
+                    System.err.println(bundle.getString("error.path.invalid"));
                     return 1;
                 }
                 configManager.setModulesPath(modulesPath.getAbsolutePath());
-                System.out.println(loc.getString("msg.modulePathUpdated", modulesPath.getAbsolutePath()));
+                System.out.println(MessageFormat.format(bundle.getString("msg.modulePathUpdated"), modulesPath.getAbsolutePath()));
             }
             String currentModulesPath = configManager.getModulesPath();
             if (currentModulesPath == null || currentModulesPath.trim().isEmpty()) {
-                System.err.println(loc.getString("error.module.notConfigured"));
+                System.err.println(bundle.getString("error.module.notConfigured"));
                 return 1;
             }
             ModuleScanner scanner = new ModuleScanner();
             try {
                 List<ModuleScanner.Module> modules = scanner.findModules(Paths.get(currentModulesPath));
                 if (modules.isEmpty()) {
-                    System.out.println(loc.getString("msg.noModulesFound", currentModulesPath));
+                    System.out.println(MessageFormat.format(bundle.getString("msg.noModulesFound"), currentModulesPath));
                 } else {
                     modules.forEach(module -> System.out.printf("%s\t%s\t%s%n", module.getLanguage(), module.getName(), module.getDescription()));
                 }
             } catch (IOException e) {
-                System.err.println(loc.getString("error.directory.read", e.getMessage()));
+                System.err.println(MessageFormat.format(bundle.getString("error.directory.read"), e.getMessage()));
                 return 1;
             }
             return 0;
@@ -333,14 +328,14 @@ public class Main implements Callable<Integer> {
             if (moduleName == null || moduleName.isEmpty()) {
                 moduleName = configManager.getLastUsedModule();
                 if (moduleName == null || moduleName.isEmpty()) {
-                    System.err.println(loc.getString("error.module.nameMissing"));
+                    System.err.println(bundle.getString("error.module.nameMissing"));
                     return 1;
                 }
-                if (verbosity > 0) System.out.println(loc.getString("msg.usingLastModule", moduleName));
+                if (verbosity > 0) System.out.println(MessageFormat.format(bundle.getString("msg.usingLastModule"), moduleName));
             }
             Path modulePath = Paths.get(configManager.getModulesPath(), moduleName + ".sqlite3");
             if (!Files.exists(modulePath)) {
-                System.err.println(loc.getString("error.module.notFound", modulePath));
+                System.err.println(MessageFormat.format(bundle.getString("error.module.notFound"), modulePath));
                 return 1;
             }
 
@@ -348,13 +343,11 @@ public class Main implements Callable<Integer> {
                 VerseIndexManager indexManager = new VerseIndexManager(configManager, verbosity);
                 BookMapper bookMapper;
 
-                // Logic to load the correct book mapper
                 if (useModuleAbbreviations) {
                     AbbreviationManager abbrManager = new AbbreviationManager(configManager, verbosity);
                     Path abbrFile = abbrManager.ensureAbbreviationFile(moduleName, modulePath);
                     bookMapper = new BookMapper(abbrManager.loadAbbreviations(abbrFile));
                 } else if (customMappingPrefix != null) {
-                    // --- FIX: Removed the incorrect 'verbosity' argument ---
                     bookMapper = BookMappingManager.getBookMapper(configManager, customMappingPrefix);
                 } else {
                     bookMapper = BookMappingManager.getBookMapper(configManager);
@@ -366,22 +359,21 @@ public class Main implements Callable<Integer> {
                 List<ReferenceParser.RangeWithCount> ranges = parser.parseWithCounts(referenceString);
 
                 if (ranges.isEmpty() && !referenceString.trim().isEmpty()) {
-                    // parseWithCounts will have printed an error, so just exit
                     return 1;
                 }
 
                 if (!outputJson) {
-                    System.out.println(loc.getString("parse.output.header", referenceString));
+                    System.out.println(MessageFormat.format(bundle.getString("parse.output.header"), referenceString));
                     for (int i = 0; i < ranges.size(); i++) {
                         ReferenceParser.RangeWithCount range = ranges.get(i);
                         
-                        String details = MessageFormat.format(loc.getString("parse.output.range.details"),
+                        String details = MessageFormat.format(bundle.getString("parse.output.range.details"),
                                 range.start.toString(),
                                 range.end.toString(),
                                 range.verseCount
                         );
                         System.out.printf("  %s %d: %s%n",
-                                loc.getString("parse.output.range.label"), (i + 1), details);
+                                bundle.getString("parse.output.range.label"), (i + 1), details);
                     }
                 } else {
                     Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
@@ -390,7 +382,7 @@ public class Main implements Callable<Integer> {
                 }
 
             } catch (Exception e) {
-                System.err.println(loc.getString("error.unexpected"));
+                System.err.println(MessageFormat.format(bundle.getString("error.unexpected"), e.getMessage()));
                 e.printStackTrace();
                 return 1;
             }
@@ -402,7 +394,7 @@ public class Main implements Callable<Integer> {
     static class OpenCommand implements Callable<Integer> {
         @Override
         public Integer call() {
-            System.err.println(loc.getString("error.subcommand.required"));
+            System.err.println(bundle.getString("error.subcommand.required"));
             new CommandLine(this).usage(System.err);
             return 1;
         }
@@ -417,14 +409,14 @@ public class Main implements Callable<Integer> {
                     if (Files.notExists(configPath)) {
                         Files.createDirectories(configPath);
                     }
-                    System.out.println(loc.getString("msg.opening.path", configPath.toAbsolutePath()));
+                    System.out.println(MessageFormat.format(bundle.getString("msg.opening.path"), configPath.toAbsolutePath()));
                     Desktop.getDesktop().open(configPath.toFile());
                     return 0;
                 } catch (UnsupportedOperationException e) {
-                    System.err.println(loc.getString("error.open.unsupported"));
+                    System.err.println(bundle.getString("error.open.unsupported"));
                     return 1;
                 } catch (IOException e) {
-                    System.err.println(loc.getString("error.open.failed", e.getMessage()));
+                    System.err.println(MessageFormat.format(bundle.getString("error.open.failed"), e.getMessage()));
                     return 1;
                 }
             }
@@ -437,23 +429,23 @@ public class Main implements Callable<Integer> {
                 ConfigManager configManager = new ConfigManager();
                 String modulesPathStr = configManager.getModulesPath();
                 if (modulesPathStr == null || modulesPathStr.isEmpty()) {
-                    System.err.println(loc.getString("error.module.notConfigured"));
+                    System.err.println(bundle.getString("error.module.notConfigured"));
                     return 1;
                 }
                 try {
                     Path modulesPath = Paths.get(modulesPathStr);
                      if (Files.notExists(modulesPath)) {
-                        System.err.println(loc.getString("error.path.notFound", modulesPath.toAbsolutePath()));
+                        System.err.println(MessageFormat.format(bundle.getString("error.path.notFound"), modulesPath.toAbsolutePath()));
                         return 1;
                     }
-                    System.out.println(loc.getString("msg.opening.path", modulesPath.toAbsolutePath()));
+                    System.out.println(MessageFormat.format(bundle.getString("msg.opening.path"), modulesPath.toAbsolutePath()));
                     Desktop.getDesktop().open(modulesPath.toFile());
                     return 0;
                 } catch (UnsupportedOperationException e) {
-                    System.err.println(loc.getString("error.open.unsupported"));
+                    System.err.println(bundle.getString("error.open.unsupported"));
                     return 1;
                 } catch (IOException e) {
-                    System.err.println(loc.getString("error.open.failed", e.getMessage()));
+                    System.err.println(MessageFormat.format(bundle.getString("error.open.failed"), e.getMessage()));
                     return 1;
                 }
             }
@@ -463,16 +455,14 @@ public class Main implements Callable<Integer> {
     static class VersionProvider implements CommandLine.IVersionProvider {
         @Override
         public String[] getVersion() throws Exception {
-            return new String[] { loc.getString("app.version") };
+            return new String[] { bundle.getString("app.version") };
         }
     }
 
     public static void main(String[] args) {
-        // A boolean flag to indicate if we should launch the GUI by default.
         boolean launchGuiDefault = (args.length == 0);
         int exitCode;
 
-        // OR if the 'gui' command was explicitly passed.
         if (launchGuiDefault || Arrays.asList(args).contains("gui")) {
             GuiConfigManager configManager = new GuiConfigManager();
             String lafClassName = configManager.getConfig().lookAndFeelClassName;
@@ -490,12 +480,9 @@ public class Main implements Callable<Integer> {
             }
         }
 
-        // Execute GUI or CLI
         if (launchGuiDefault) {
-            // No arguments were passed, so launch the GUI.
             exitCode = new CommandLine(new Main()).execute("gui");
         } else {
-            // Arguments were provided, so let Picocli process them.
             exitCode = new CommandLine(new Main()).execute(args);
         }
         System.exit(exitCode);

@@ -9,14 +9,16 @@ import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ResourceBundle;
 
 public class ConfigManager {
     private final Path configFilePath;
     private Map<String, Object> config;
     private static final String DEFAULT_FORMAT = "%a %c:%v %t";
-    private final LocalizationManager loc = LocalizationManager.getInstance();
+    private static final ResourceBundle bundle = ResourceBundle.getBundle("messages");
 
     public ConfigManager() {
         String userHome = System.getProperty("user.home");
@@ -62,7 +64,8 @@ public class ConfigManager {
             new Gson().toJson(config, writer);
             writer.close();
         } catch (IOException e) {
-            System.err.println(loc.getString("error.config.save", e.getMessage()));
+            String message = MessageFormat.format(bundle.getString("error.config.save"), e.getMessage());
+            System.err.println(message);
         }
     }
 
