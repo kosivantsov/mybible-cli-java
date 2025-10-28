@@ -1,0 +1,743 @@
+{
+  "10": [
+    "Genesis",
+    "Gen",
+    "Ge",
+    "Gn",
+    "1 Moses",
+    "1Moses",
+    "I Moses",
+    "1 Mos",
+    "1Mos",
+    "I Mos",
+    "1 M",
+    "1M"
+  ],
+  "20": [
+    "Exodus",
+    "Exo",
+    "Exod",
+    "Ex",
+    "2 Moses",
+    "2Moses",
+    "II Moses",
+    "2 Mos",
+    "2Mos",
+    "II Mos",
+    "2 M",
+    "2M"
+  ],
+  "30": [
+    "Leviticus",
+    "Lev",
+    "Lv",
+    "Le",
+    "3 Moses",
+    "3Moses",
+    "III Moses",
+    "3 Mos",
+    "3Mos",
+    "III Mos",
+    "3 M",
+    "3M"
+  ],
+  "40": [
+    "Numbers",
+    "Num",
+    "Nu",
+    "Nm",
+    "Nb",
+    "4 Moses",
+    "4Moses",
+    "IV Moses",
+    "4 Mos",
+    "4Mos",
+    "IV Mos",
+    "4 M",
+    "4M"
+  ],
+  "50": [
+    "Deuteronomy",
+    "Deu",
+    "Deut",
+    "Dt",
+    "5 Moses",
+    "5Moses",
+    "V Moses",
+    "5 Mos",
+    "5Mos",
+    "V Mos",
+    "5 M",
+    "5M"
+  ],
+  "60": [
+    "Joshua",
+    "Jos",
+    "Josh",
+    "Jsh"
+  ],
+  "70": [
+    "Judges",
+    "Jdg",
+    "Judg",
+    "Jdgs"
+  ],
+  "80": [
+    "Ruth",
+    "Rut",
+    "Ru",
+    "Rth"
+  ],
+  "90": [
+    "1 Samuel",
+    "1Samuel",
+    "I Samuel",
+    "1 Sa",
+    "1Sa",
+    "I Sa",
+    "1 Sam",
+    "1Sam",
+    "I Sam",
+    "1 Sm",
+    "1Sm",
+    "I Sm"
+  ],
+  "100": [
+    "2 Samuel",
+    "2Samuel",
+    "II Samuel",
+    "2 Sa",
+    "2Sa",
+    "II Sa",
+    "2 Sam",
+    "2Sam",
+    "II Sam",
+    "2 Sm",
+    "2Sm",
+    "II Sm"
+  ],
+  "110": [
+    "1 Kings",
+    "1Kings",
+    "I Kings",
+    "1 Ki",
+    "1Ki",
+    "I Ki",
+    "1 Kgs",
+    "1Kgs",
+    "I Kgs",
+    "1 Kin",
+    "1Kin",
+    "I Kin"
+  ],
+  "120": [
+    "2 Kings",
+    "2Kings",
+    "II Kings",
+    "2 Ki",
+    "2Ki",
+    "II Ki",
+    "2 Kgs",
+    "2Kgs",
+    "II Kgs",
+    "2 Kin",
+    "2Kin",
+    "II Kin"
+  ],
+  "130": [
+    "1 Chronicles",
+    "1Chronicles",
+    "I Chronicles",
+    "1 Ch",
+    "1Ch",
+    "I Ch",
+    "1 Chr",
+    "1Chr",
+    "I Chr",
+    "1 Chron",
+    "1Chron",
+    "I Chron"
+  ],
+  "140": [
+    "2 Chronicles",
+    "2Chronicles",
+    "II Chronicles",
+    "2 Ch",
+    "2Ch",
+    "II Ch",
+    "2 Chr",
+    "2Chr",
+    "II Chr",
+    "2 Chron",
+    "2Chron",
+    "II Chron"
+  ],
+  "150": [
+    "Ezra",
+    "Ezr",
+    "Ez"
+  ],
+  "160": [
+    "Nehemiah",
+    "Neh",
+    "Ne"
+  ],
+  "165": [
+    "1 Esdras",
+    "1Esdras",
+    "I Esdras",
+    "1 Es",
+    "1Es",
+    "I Es",
+    "1 Esd",
+    "1Esd",
+    "I Esd"
+  ],
+  "166": [
+    "2 Esdras",
+    "2Esdras",
+    "II Esdras",
+    "2 Es",
+    "2Es",
+    "II Es",
+    "2 Esd",
+    "2Esd",
+    "II Esd"
+  ],
+  "170": [
+    "Tobit",
+    "Tob"
+  ],
+  "180": [
+    "Judith",
+    "Jdt",
+    "Jdth"
+  ],
+  "190": [
+    "Esther",
+    "Est",
+    "Esth",
+    "Es"
+  ],
+  "192": [
+    "Greek Esther",
+    "Additions to Esther",
+    "Esg",
+    "AddEsth",
+    "EstGr",
+    "GrEsth"
+  ],
+  "220": [
+    "Job",
+    "Jb"
+  ],
+  "230": [
+    "Psalms",
+    "Psalm",
+    "Psa",
+    "Ps",
+    "Pslm"
+  ],
+  "232": [
+    "Psalm 151",
+    "Ps2",
+    "Ps151"
+  ],
+  "235": [
+    "Psalms of Solomon",
+    "PSS"
+  ],
+  "240": [
+    "Proverbs",
+    "Pro",
+    "Prov",
+    "Prv",
+    "Pr"
+  ],
+  "245": [
+    "Odae",
+    "Odas",
+    "Oda"
+  ],
+  "250": [
+    "Ecclesiastes",
+    "Qoholeth",
+    "Ecc",
+    "Eccl",
+    "Qoh",
+    "Eccles"
+  ],
+  "260": [
+    "Song of Songs",
+    "Song of Solomon",
+    "Canticles of Canticles",
+    "Sng",
+    "Song",
+    "Sg",
+    "SOS",
+    "Cant",
+    "COC"
+  ],
+  "270": [
+    "Wisdom of Solomon",
+    "Wis",
+    "Wisd"
+  ],
+  "280": [
+    "Sirach",
+    "Ecclesiasticus",
+    "Sir",
+    "Ecclus"
+  ],
+  "290": [
+    "Isaiah",
+    "Isa",
+    "Is"
+  ],
+  "300": [
+    "Jeremiah",
+    "Jer",
+    "Je",
+    "Jr",
+    "Jrm"
+  ],
+  "305": [
+    "Prayer of Azariah",
+    "Azariah",
+    "Aza",
+    "PrAzar",
+    "PrAz",
+    "Azar"
+  ],
+  "310": [
+    "Lamentations",
+    "Lam",
+    "La",
+    "Lament"
+  ],
+  "315": [
+    "Letter of Jeremiah",
+    "Epistle of Jeremiah",
+    "Lje",
+    "EpJer",
+    "LetJer",
+    "LJ"
+  ],
+  "320": [
+    "1 Baruch",
+    "1Baruch",
+    "I Baruch",
+    "1 Bar",
+    "1Bar",
+    "I Bar",
+    "1 Br",
+    "1Br",
+    "I Br"
+  ],
+  "321": [
+    "2 Baruch",
+    "2Baruch",
+    "II Baruch",
+    "2 Ba",
+    "2Ba",
+    "II Ba"
+  ],
+  "322": [
+    "3 Baruch",
+    "3Baruch",
+    "III Baruch",
+    "3 Ba",
+    "3Ba",
+    "III Ba"
+  ],
+  "323": [
+    "Song of the 3 Young Men",
+    "Song of the Three Young Men",
+    "S3Y",
+    "SgThree",
+    "Sg3"
+  ],
+  "325": [
+    "Susanna",
+    "Sus"
+  ],
+  "330": [
+    "Ezekiel",
+    "Ezk",
+    "Ezek",
+    "Eze"
+  ],
+  "340": [
+    "Daniel",
+    "Dan",
+    "Da",
+    "Dn"
+  ],
+  "345": [
+    "Bel and the Dragon",
+    "Bel"
+  ],
+  "350": [
+    "Hosea",
+    "Hos",
+    "Ho"
+  ],
+  "360": [
+    "Joel",
+    "Jol",
+    "Jl"
+  ],
+  "370": [
+    "Amos",
+    "Amo",
+    "Am"
+  ],
+  "380": [
+    "Obadiah",
+    "Oba",
+    "Obad",
+    "Ob"
+  ],
+  "390": [
+    "Jonah",
+    "Jon",
+    "Jona"
+  ],
+  "400": [
+    "Micah",
+    "Mic",
+    "Mi",
+    "Mc"
+  ],
+  "410": [
+    "Nahum",
+    "Nam",
+    "Nah",
+    "Na"
+  ],
+  "420": [
+    "Habakkuk",
+    "Hab",
+    "Hb"
+  ],
+  "430": [
+    "Zephaniah",
+    "Zep",
+    "Zp"
+  ],
+  "440": [
+    "Haggai",
+    "Hag",
+    "Hg"
+  ],
+  "450": [
+    "Zechariah",
+    "Zec",
+    "Zech",
+    "Zch"
+  ],
+  "460": [
+    "Malachi",
+    "Mal",
+    "Ml"
+  ],
+  "462": [
+    "1 Maccabees",
+    "1Maccabees",
+    "I Maccabees",
+    "1 Ma",
+    "1Ma",
+    "I Ma",
+    "1 Macc",
+    "1Macc",
+    "I Macc",
+    "1 Mac",
+    "1Mac",
+    "I Mac"
+  ],
+  "464": [
+    "2 Maccabees",
+    "2Maccabees",
+    "II Maccabees",
+    "2 Ma",
+    "2Ma",
+    "II Ma",
+    "2 Macc",
+    "2Macc",
+    "II Macc",
+    "2 Mac",
+    "2Mac",
+    "II Mac"
+  ],
+  "466": [
+    "3 Maccabees",
+    "3Maccabees",
+    "III Maccabees",
+    "3 Ma",
+    "3Ma",
+    "III Ma",
+    "3 Macc",
+    "3Macc",
+    "III Macc",
+    "3 Mac",
+    "3Mac",
+    "III Mac"
+  ],
+  "467": [
+    "4 Maccabees",
+    "4Maccabees",
+    "IV Maccabees",
+    "4 Ma",
+    "4Ma",
+    "IV Ma",
+    "4 Macc",
+    "4Macc",
+    "IV Macc",
+    "4 Mac",
+    "4Mac",
+    "IV Mac"
+  ],
+  "468": [
+    "2 Esdras",
+    "2Esdras",
+    "II Esdras",
+    "2 Es",
+    "2Es",
+    "II Es",
+    "2 Esd",
+    "2Esd",
+    "II Esd"
+  ],
+  "470": [
+    "Matthew",
+    "Mat",
+    "Matt",
+    "Mt"
+  ],
+  "480": [
+    "Mark",
+    "Mrk",
+    "Mar",
+    "Mk"
+  ],
+  "490": [
+    "Luke",
+    "Luk",
+    "Lk",
+    "Lu"
+  ],
+  "500": [
+    "John",
+    "Jhn",
+    "Jn"
+  ],
+  "510": [
+    "Acts",
+    "Act",
+    "Ac"
+  ],
+  "511": [
+    "Didache",
+    "Did"
+  ],
+  "520": [
+    "Romans",
+    "Rom",
+    "Ro",
+    "Rm"
+  ],
+  "530": [
+    "1 Corinthians",
+    "1Corinthians",
+    "I Corinthians",
+    "1 Co",
+    "1Co",
+    "I Co",
+    "1 Cor",
+    "1Cor",
+    "I Cor"
+  ],
+  "540": [
+    "2 Corinthians",
+    "2Corinthians",
+    "II Corinthians",
+    "2 Co",
+    "2Co",
+    "II Co",
+    "2 Cor",
+    "2Cor",
+    "II Cor"
+  ],
+  "550": [
+    "Galatians",
+    "Gal",
+    "Ga"
+  ],
+  "560": [
+    "Ephesians",
+    "Eph"
+  ],
+  "570": [
+    "Philippians",
+    "Php",
+    "Phil",
+    "Phlp"
+  ],
+  "580": [
+    "Colossians",
+    "Col"
+  ],
+  "590": [
+    "1 Thessalonians",
+    "1Thessalonians",
+    "I Thessalonians",
+    "1 Th",
+    "1Th",
+    "I Th",
+    "1 Thess",
+    "1Thess",
+    "I Thess",
+    "1 Ths",
+    "1Ths",
+    "I Ths",
+    "1 Thes",
+    "1Thes",
+    "I Thes"
+  ],
+  "600": [
+    "2 Thessalonians",
+    "2Thessalonians",
+    "II Thessalonians",
+    "2 Th",
+    "2Th",
+    "II Th",
+    "2 Thess",
+    "2Thess",
+    "II Thess",
+    "2 Ths",
+    "2Ths",
+    "II Ths",
+    "2 Thes",
+    "2Thes",
+    "II Thes"
+  ],
+  "610": [
+    "1 Timothy",
+    "1Timothy",
+    "I Timothy",
+    "1 Ti",
+    "1Ti",
+    "I Ti",
+    "1 Tim",
+    "1Tim",
+    "I Tim"
+  ],
+  "620": [
+    "2 Timothy",
+    "2Timothy",
+    "II Timothy",
+    "2 Ti",
+    "2Ti",
+    "II Ti",
+    "2 Tim",
+    "2Tim",
+    "II Tim"
+  ],
+  "630": [
+    "Titus",
+    "Tit",
+    "Tt"
+  ],
+  "640": [
+    "Philemon",
+    "Phm",
+    "Phlm"
+  ],
+  "650": [
+    "Hebrews",
+    "Heb",
+    "He"
+  ],
+  "660": [
+    "James",
+    "Jas",
+    "Jam",
+    "Jms",
+    "Ja"
+  ],
+  "670": [
+    "1 Peter",
+    "1Peter",
+    "I Peter",
+    "1 Pe",
+    "1Pe",
+    "I Pe",
+    "1 Pet",
+    "1Pet",
+    "I Pet",
+    "1 Pt",
+    "1Pt",
+    "I Pt"
+  ],
+  "680": [
+    "2 Peter",
+    "2Peter",
+    "II Peter",
+    "2 Pe",
+    "2Pe",
+    "II Pe",
+    "2 Pet",
+    "2Pet",
+    "II Pet",
+    "2 Pt",
+    "2Pt",
+    "II Pt"
+  ],
+  "690": [
+    "1 John",
+    "1John",
+    "I John",
+    "1 Jn",
+    "1Jn",
+    "I Jn"
+  ],
+  "700": [
+    "2 John",
+    "2John",
+    "II John",
+    "2 Jn",
+    "2Jn",
+    "II Jn"
+  ],
+  "710": [
+    "3 John",
+    "3John",
+    "III John",
+    "3 Jn",
+    "3Jn",
+    "III Jn"
+  ],
+  "720": [
+    "Jude",
+    "Jud",
+    "Jd"
+  ],
+  "730": [
+    "Revelation",
+    "Apocalypse",
+    "Rev",
+    "Re",
+    "Revel",
+    "Apoc"
+  ],
+  "780": [
+    "Letter to the Laodiceans",
+    "Laodiceans",
+    "Lao"
+  ],
+  "790": [
+    "Prayer of Manasseh",
+    "Man",
+    "PrMan"
+  ]
+}

@@ -1,0 +1,504 @@
+package org.truetranslation.mybible.cli;
+
+
+import com.formdev.flatlaf.FlatLightLaf;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import java.awt.Desktop;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.sql.SQLException;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.concurrent.Callable;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import javax.swing.*;
+
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Help;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
+import picocli.CommandLine.Spec;
+
+import org.truetranslation.mybible.core.*;
+import org.truetranslation.mybible.core.model.Book;
+import org.truetranslation.mybible.core.model.GuiVerse;
+import org.truetranslation.mybible.core.model.Reference;
+import org.truetranslation.mybible.core.model.Verse;
+import org.truetranslation.mybible.gui.Gui;
+import org.truetranslation.mybible.gui.GuiConfigManager;
+
+@Command(
+    name = "mybible-cli",
+    mixinStandardHelpOptions = true,
+    versionProvider = Main.VersionProvider.class,
+    description = "A command-line tool for reading MyBible modules.",
+    subcommands = {
+        Main.GetCommand.class,
+        Main.ListCommand.class,
+        Main.ParseCommand.class,
+        Main.OpenCommand.class,
+        Main.GuiCommand.class,
+        Main.HelpCommand.class
+    }
+)
+public class Main implements Callable<Integer> {
+
+    private static final LocalizationManager loc = LocalizationManager.getInstance();
+
+    @Override
+    public Integer call() {
+        new CommandLine(this).usage(System.out);
+        return 0;
+    }
+
+    @Command(name = "get", description = "Fetches and displays Bible verses.")
+    static class GetCommand implements Callable<Integer> {
+        @Option(names = {"-m", "--module-name"}, description = "Name of the module. If omitted, the last-used module is assumed.")
+        private String moduleName;
+        @Option(names = {"-r", "--reference"}, required = true, description = "The Bible reference (e.g., 'Gen 1:1-5').")
+        private String referenceString;
+        @Option(names = {"-A", "--self-abbr"}, description = "Use book abbreviations from the module itself for parsing.")
+        private boolean useSelfAbbreviations;
+        
+        // --- NEW OPTION ---
+        @Option(names = {"-a", "--abbr-prefix"}, description = "Use a custom abbreviations mapping file (e.g., <prefix>_mapping.json).")
+        private String abbreviationsPrefix;
+
+        @Option(names = {"-f", "--format"}, description = "Custom output format string.")
+        private String formatString;
+        @Option(names = {"-F", "--save-format"}, description = "Use and save a new default format string.")
+        private String saveFormatString;
+        @Option(names = {"-j", "--json"}, description = "JSON output.")
+        private boolean outputJson;
+        @Option(names = "--verbose", description = "Enable verbose informational messages.")
+        private boolean verbose;
+        @Option(names = "--silent", description = "Disable informational messages.")
+        private boolean silent;
+
+        @Override
+        public Integer call() {
+            ConfigManager configManager = new ConfigManager();
+            int verbosity = configManager.getVerbosity();
+            if (verbose) verbosity = 1;
+            if (silent) verbosity = 0;
+            configManager.setVerbosity(verbosity);
+
+            if (moduleName == null || moduleName.isEmpty()) {
+                moduleName = configManager.getLastUsedModule();
+                if (moduleName == null || moduleName.isEmpty()) {
+                    System.err.println(loc.getString("error.module.nameMissing"));
+                    return 1;
+                }
+                if (verbosity > 0) System.out.println(loc.getString("msg.usingLastModule", moduleName));
+            }
+            String modulesPathStr = configManager.getModulesPath();
+            if (modulesPathStr == null || modulesPathStr.isEmpty()) {
+                System.err.println(loc.getString("error.module.notConfigured"));
+                return 1;
+            }
+            Path modulePath = Paths.get(modulesPathStr, moduleName + ".sqlite3");
+            if (!Files.exists(modulePath)) {
+                System.err.println(loc.getString("error.module.notFound", modulePath));
+                return 1;
+            }
+            VerseFetcher fetcher = null;
+            try {
+                String activeFormatString = configManager.getFormatString();
+                if (saveFormatString != null) {
+                    activeFormatString = saveFormatString;
+                    configManager.setFormatString(saveFormatString);
+                    if (verbosity > 0) System.out.println(loc.getString("msg.newFormatSaved"));
+                } else if (formatString != null) {
+                    activeFormatString = formatString;
+                }
+
+                VerseIndexManager indexManager = new VerseIndexManager(configManager, verbosity);
+                Map<Integer, Integer> verseIndex = indexManager.getVerseIndex(moduleName, modulePath);
+
+                // --- THIS IS THE MODIFIED LINE ---
+                // Load the default or custom book mapper using the prefix.
+                BookMapper defaultBookMapper = BookMappingManager.getBookMapper(configManager, abbreviationsPrefix);
+                
+                BookMapper moduleBookMapper;
+                try {
+                    AbbreviationManager abbrManager = new AbbreviationManager(configManager, verbosity);
+                    Path abbrFile = abbrManager.ensureAbbreviationFile(moduleName, modulePath);
+                    moduleBookMapper = new BookMapper(abbrManager.loadAbbreviations(abbrFile));
+                } catch (Exception e) {
+                    if (verbosity > 0) {
+                        System.err.println(loc.getString("parse.error.noModuleAbbrs", e.getMessage()));
+                    }
+                    moduleBookMapper = defaultBookMapper;
+                }
+                
+                BookMapper parserMapper = useSelfAbbreviations ? moduleBookMapper : defaultBookMapper;
+                ReferenceParser parser = new ReferenceParser(parserMapper, verseIndex);
+
+                List<ReferenceParser.RangeWithCount> rangesWithCount = parser.parseWithCounts(referenceString);
+                if (rangesWithCount.isEmpty()) { return 1; }
+
+                List<ReferenceParser.Range> ranges = new ArrayList<>(rangesWithCount);
+
+                fetcher = new VerseFetcher(modulePath);
+                List<Verse> verses = fetcher.fetch(ranges);
+                configManager.setLastUsedModule(moduleName);
+                
+                OutputFormatter formatter = new OutputFormatter(activeFormatString, defaultBookMapper, moduleBookMapper, moduleName);
+
+                if (! outputJson) {
+                    for (Verse verse : verses) {
+                        Reference containingRef = findContainingReference(ranges, verse);
+                        System.out.println(formatter.format(verse, containingRef));
+                    }
+                } else {
+                    List<GuiVerse> guiVerses = new ArrayList<>();
+                    for (Verse verse : verses) {
+                        Reference ref = findContainingReference(ranges, verse);
+                        String userProvidedShortName = ref != null ? ref.getBookName() : null;
+                        int bookNum = verse.getBookNumber();
+
+                        Optional<Book> defaultBookOpt = defaultBookMapper.getBook(bookNum);
+                        String defaultFullName = defaultBookOpt.map(Book::getFullName).orElse("");
+                        String defaultShortName = defaultBookOpt.map(book ->
+                            (userProvidedShortName != null && book.getShortNames().contains(userProvidedShortName)) ? userProvidedShortName : book.getShortNames().stream().findFirst().orElse("")
+                        ).orElse("");
+
+                        Optional<Book> moduleBookOpt = moduleBookMapper.getBook(bookNum);
+                        String moduleFullName = moduleBookOpt.map(Book::getFullName).orElse(defaultFullName);
+                        String moduleShortName = moduleBookOpt.map(book ->
+                            (userProvidedShortName != null && book.getShortNames().contains(userProvidedShortName)) ? userProvidedShortName : book.getShortNames().stream().findFirst().orElse("")
+                        ).orElse(defaultShortName);
+
+                        guiVerses.add(new GuiVerse(
+                            bookNum,
+                            defaultFullName,
+                            defaultShortName,
+                            moduleFullName,
+                            moduleShortName,
+                            verse.getChapter(),
+                            verse.getVerse(),
+                            verse.getText(),
+                            moduleName
+                        ));
+                    }
+                    Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+                    String jsonForGui = gson.toJson(guiVerses);
+                    System.out.println(jsonForGui);
+                }
+
+            } catch (Exception e) {
+                System.err.println(loc.getString("error.unexpected") + ": " + e.getMessage());
+                if (verbosity > 0) e.printStackTrace();
+                return 1;
+            } finally {
+                if (fetcher != null) { try { fetcher.close(); } catch (SQLException ex) { ex.printStackTrace(); } }
+            }
+            return 0;
+        }
+
+        private Reference findContainingReference(List<ReferenceParser.Range> ranges, Verse verse) {
+            for (ReferenceParser.Range range : ranges) {
+                 if (verse.getBookNumber() >= range.start.getBook() && verse.getBookNumber() <= range.end.getBook() &&
+                     verse.getChapter() >= range.start.getChapter() && verse.getChapter() <= range.end.getChapter() &&
+                     verse.getVerse() >= range.start.getVerse() && verse.getVerse() <= range.end.getVerse()) {
+                    return range.start;
+                }
+            }
+            return null;
+        }
+    }
+
+    @Command(name = "help", description = "Displays help information about a topic.")
+    static class HelpCommand implements Callable<Integer> {
+        @Spec CommandSpec spec;
+        @Parameters(index = "0", description = "The topic to get help on (format, version, get, etc.).", arity = "0..1")
+        private String topic;
+        @Override
+        public Integer call() {
+            if (topic == null) {
+                CommandLine mainCommand = spec.parent().commandLine();
+                mainCommand.usage(System.out);
+                System.out.println();
+                System.out.println(loc.getString("help.header"));
+                List<String> topics = Arrays.asList("get", "list", "parse", "open", "gui", "format");
+                for (String topicName : topics) {
+                    String description = loc.getString("help.topic." + topicName + ".description");
+                    String formattedLine = String.format("  @|bold %-6s|@ %s", topicName, description);
+                    System.out.println(Help.Ansi.AUTO.string(formattedLine));
+                }
+                return 0;
+            }
+            switch (topic.toLowerCase()) {
+                case "format": System.out.println(loc.getString("help.format.text")); break;
+                case "version": System.out.println(loc.getString("app.version")); break;
+                default:
+                    CommandLine subCommand = spec.parent().subcommands().get(topic.toLowerCase());
+                    if (subCommand != null) { subCommand.usage(System.out); } 
+                    else { System.err.println(loc.getString("help.unknown.topic", topic)); return 1; }
+            }
+            return 0;
+        }
+    }
+
+    @Command(name = "gui", description = "Launches the graphical user interface.")
+    static class GuiCommand implements Callable<Integer> {
+        @Option(names = {"-m", "--module-name"}, description = "Module name to load on startup.")
+        String moduleName;
+
+        @Option(names = {"-r", "--reference"}, description = "Bible reference to display on startup.")
+        String reference;
+
+        @Override
+        public Integer call() throws InterruptedException {
+            // Use a latch to make the main thread wait for the GUI to close.
+            final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                // Pass the initial arguments AND a callback to signal when the GUI closes.
+                Gui gui = new Gui(moduleName, reference, () -> latch.countDown());
+                gui.setVisible(true);
+            });
+
+            latch.await();
+            return 0;
+        }
+    }
+
+    @Command(name = "list", description = "Lists available MyBible modules.")
+    static class ListCommand implements Callable<Integer> {
+        @Option(names = {"-p", "--path"}, description = "Set and save a new path to the folder containing modules.")
+        File modulesPath;
+        @Override
+        public Integer call() {
+            ConfigManager configManager = new ConfigManager();
+            if (modulesPath != null) {
+                if (!modulesPath.isDirectory()) {
+                    System.err.println(loc.getString("error.path.invalid"));
+                    return 1;
+                }
+                configManager.setModulesPath(modulesPath.getAbsolutePath());
+                System.out.println(loc.getString("msg.modulePathUpdated", modulesPath.getAbsolutePath()));
+            }
+            String currentModulesPath = configManager.getModulesPath();
+            if (currentModulesPath == null || currentModulesPath.trim().isEmpty()) {
+                System.err.println(loc.getString("error.module.notConfigured"));
+                return 1;
+            }
+            ModuleScanner scanner = new ModuleScanner();
+            try {
+                List<ModuleScanner.Module> modules = scanner.findModules(Paths.get(currentModulesPath));
+                if (modules.isEmpty()) {
+                    System.out.println(loc.getString("msg.noModulesFound", currentModulesPath));
+                } else {
+                    modules.forEach(module -> System.out.printf("%s\t%s\t%s%n", module.getLanguage(), module.getName(), module.getDescription()));
+                }
+            } catch (IOException e) {
+                System.err.println(loc.getString("error.directory.read", e.getMessage()));
+                return 1;
+            }
+            return 0;
+        }
+    }
+
+    @Command(name = "parse", description = "Parses a reference string, validates it, and returns ranges and verse counts.")
+    static class ParseCommand implements Callable<Integer> {
+        @Option(names = {"-m", "--module-name"}, description = "Name of the module. If omitted, the last-used module is assumed.")
+        private String moduleName;
+
+        @Option(names = {"-j", "--json"}, description = "Output parsed results in JSON.")
+        private boolean outputJson;
+
+        @Option(names = {"-r", "--reference"}, required = true, description = "The Bible reference to parse (e.g., 'Gen 1:1-5').")
+        private String referenceString;
+        
+        @Option(names = "-A", description = "Use module-specific book name abbreviations if available.")
+        private boolean useModuleAbbreviations;
+
+        @Option(names = "-a", paramLabel = "<prefix>", description = "Use custom book name mapping from '<config_folder>/<prefix>_mapping.json'.")
+        private String customMappingPrefix;
+
+        @Override
+        public Integer call() {
+            ConfigManager configManager = new ConfigManager();
+            int verbosity = configManager.getVerbosity();
+
+            if (moduleName == null || moduleName.isEmpty()) {
+                moduleName = configManager.getLastUsedModule();
+                if (moduleName == null || moduleName.isEmpty()) {
+                    System.err.println(loc.getString("error.module.nameMissing"));
+                    return 1;
+                }
+                if (verbosity > 0) System.out.println(loc.getString("msg.usingLastModule", moduleName));
+            }
+            Path modulePath = Paths.get(configManager.getModulesPath(), moduleName + ".sqlite3");
+            if (!Files.exists(modulePath)) {
+                System.err.println(loc.getString("error.module.notFound", modulePath));
+                return 1;
+            }
+
+            try {
+                VerseIndexManager indexManager = new VerseIndexManager(configManager, verbosity);
+                BookMapper bookMapper;
+
+                // Logic to load the correct book mapper
+                if (useModuleAbbreviations) {
+                    AbbreviationManager abbrManager = new AbbreviationManager(configManager, verbosity);
+                    Path abbrFile = abbrManager.ensureAbbreviationFile(moduleName, modulePath);
+                    bookMapper = new BookMapper(abbrManager.loadAbbreviations(abbrFile));
+                } else if (customMappingPrefix != null) {
+                    // --- FIX: Removed the incorrect 'verbosity' argument ---
+                    bookMapper = BookMappingManager.getBookMapper(configManager, customMappingPrefix);
+                } else {
+                    bookMapper = BookMappingManager.getBookMapper(configManager);
+                }
+
+                Map<Integer, Integer> verseIndex = indexManager.getVerseIndex(moduleName, modulePath);
+                ReferenceParser parser = new ReferenceParser(bookMapper, verseIndex);
+
+                List<ReferenceParser.RangeWithCount> ranges = parser.parseWithCounts(referenceString);
+
+                if (ranges.isEmpty() && !referenceString.trim().isEmpty()) {
+                    // parseWithCounts will have printed an error, so just exit
+                    return 1;
+                }
+
+                if (!outputJson) {
+                    System.out.println(loc.getString("parse.output.header", referenceString));
+                    for (int i = 0; i < ranges.size(); i++) {
+                        ReferenceParser.RangeWithCount range = ranges.get(i);
+                        
+                        String details = MessageFormat.format(loc.getString("parse.output.range.details"),
+                                range.start.toString(),
+                                range.end.toString(),
+                                range.verseCount
+                        );
+                        System.out.printf("  %s %d: %s%n",
+                                loc.getString("parse.output.range.label"), (i + 1), details);
+                    }
+                } else {
+                    Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+                    String jsonOutput = gson.toJson(ranges);
+                    System.out.println(jsonOutput);
+                }
+
+            } catch (Exception e) {
+                System.err.println(loc.getString("error.unexpected"));
+                e.printStackTrace();
+                return 1;
+            }
+            return 0;
+        }
+    }
+
+    @Command(name = "open", description = "Opens configuration or module folders.", subcommands = {OpenCommand.OpenConfig.class, OpenCommand.OpenModule.class})
+    static class OpenCommand implements Callable<Integer> {
+        @Override
+        public Integer call() {
+            System.err.println(loc.getString("error.subcommand.required"));
+            new CommandLine(this).usage(System.err);
+            return 1;
+        }
+
+        @Command(name="config", description = "Opens the application's configuration directory.")
+        static class OpenConfig implements Callable<Integer> {
+            @Override
+            public Integer call() {
+                try {
+                    ConfigManager configManager = new ConfigManager();
+                    Path configPath = configManager.getDefaultConfigDir();
+                    if (Files.notExists(configPath)) {
+                        Files.createDirectories(configPath);
+                    }
+                    System.out.println(loc.getString("msg.opening.path", configPath.toAbsolutePath()));
+                    Desktop.getDesktop().open(configPath.toFile());
+                    return 0;
+                } catch (UnsupportedOperationException e) {
+                    System.err.println(loc.getString("error.open.unsupported"));
+                    return 1;
+                } catch (IOException e) {
+                    System.err.println(loc.getString("error.open.failed", e.getMessage()));
+                    return 1;
+                }
+            }
+        }
+
+        @Command(name="module", description = "Opens the directory where Bible modules are stored.")
+        static class OpenModule implements Callable<Integer> {
+            @Override
+            public Integer call() {
+                ConfigManager configManager = new ConfigManager();
+                String modulesPathStr = configManager.getModulesPath();
+                if (modulesPathStr == null || modulesPathStr.isEmpty()) {
+                    System.err.println(loc.getString("error.module.notConfigured"));
+                    return 1;
+                }
+                try {
+                    Path modulesPath = Paths.get(modulesPathStr);
+                     if (Files.notExists(modulesPath)) {
+                        System.err.println(loc.getString("error.path.notFound", modulesPath.toAbsolutePath()));
+                        return 1;
+                    }
+                    System.out.println(loc.getString("msg.opening.path", modulesPath.toAbsolutePath()));
+                    Desktop.getDesktop().open(modulesPath.toFile());
+                    return 0;
+                } catch (UnsupportedOperationException e) {
+                    System.err.println(loc.getString("error.open.unsupported"));
+                    return 1;
+                } catch (IOException e) {
+                    System.err.println(loc.getString("error.open.failed", e.getMessage()));
+                    return 1;
+                }
+            }
+        }
+    }
+
+    static class VersionProvider implements CommandLine.IVersionProvider {
+        @Override
+        public String[] getVersion() throws Exception {
+            return new String[] { loc.getString("app.version") };
+        }
+    }
+
+    public static void main(String[] args) {
+        // A boolean flag to indicate if we should launch the GUI by default.
+        boolean launchGuiDefault = (args.length == 0);
+        int exitCode;
+
+        // OR if the 'gui' command was explicitly passed.
+        if (launchGuiDefault || Arrays.asList(args).contains("gui")) {
+            GuiConfigManager configManager = new GuiConfigManager();
+            String lafClassName = configManager.getConfig().lookAndFeelClassName;
+            try {
+                if (lafClassName != null && !lafClassName.isEmpty()) {
+                    UIManager.setLookAndFeel(lafClassName);
+                } else {
+                    UIManager.setLookAndFeel(new FlatLightLaf());
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to set Look and Feel. Continuing with default.");
+                if (!launchGuiDefault) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        // Execute GUI or CLI
+        if (launchGuiDefault) {
+            // No arguments were passed, so launch the GUI.
+            exitCode = new CommandLine(new Main()).execute("gui");
+        } else {
+            // Arguments were provided, so let Picocli process them.
+            exitCode = new CommandLine(new Main()).execute(args);
+        }
+        System.exit(exitCode);
+    }
+}

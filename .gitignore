@@ -19,3 +19,13 @@ gradle-app.setting
 .project
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Local configuration
+local.properties
