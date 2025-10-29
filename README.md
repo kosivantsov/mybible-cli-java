@@ -119,14 +119,14 @@ java -jar mybible-cli.jar gui -m KJV -r "Jn 3:16"
 
 **GUI Keyboard Shortcuts:**
 
-| Shortcut              | Action                                     |
-| :-------------------- | :----------------------------------------- |
-| `Esc`                 | Quit the application                       |
-| `Ctrl`/`Cmd` + `L`    | Focus the "Bible reference" input field    |
-| `Ctrl`/`Cmd` + `M`    | Focus the "Module" dropdown list           |
-| `Ctrl`/`Cmd` + `J`    | Toggle raw JSON output                     |
-| `Ctrl`+`Shift`+`C`    | Copy displayed text (with formatting)      |
-| `Cmd` + `,` (macOS)   | Open the Configuration dialog              |
+| Shortcut                 | Action                                     |
+| :----------------------- | :----------------------------------------- |
+| `Esc`                    | Quit the application                       |
+| `Ctrl`/`Cmd` + `L`       | Focus the "Bible reference" input field    |
+| `Ctrl`/`Cmd` + `M`       | Focus the "Module" dropdown list           |
+| `Ctrl`/`Cmd` + `J`       | Toggle raw JSON output                     |
+| `Ctrl`/`Cmd`+`Shift`+`C` | Copy displayed text (with formatting)      |
+| `Cmd` + `,` (macOS)      | Open the Configuration dialog              |
 
 ## Configuration
 
