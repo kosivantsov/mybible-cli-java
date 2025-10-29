@@ -461,12 +461,50 @@ public class Gui extends JFrame {
     }
 
     private static class ModuleRenderer extends DefaultListCellRenderer {
+    
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
             super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+    
             if (value instanceof ModuleScanner.Module) {
                 ModuleScanner.Module module = (ModuleScanner.Module) value;
-                setText(index == -1 ? module.getName() : String.format("%s\t%s", module.getLanguage(), module.getName()));
+    
+                if (index == -1) {
+                    setText(module.getName());
+                    return this;
+                }
+    
+                JPanel panel = new JPanel(new GridBagLayout());
+                GridBagConstraints gbc = new GridBagConstraints();
+                panel.setBackground(isSelected ? list.getSelectionBackground() : list.getBackground());
+                
+                Color foreground = isSelected ? list.getSelectionForeground() : list.getForeground();
+    
+                JLabel langLabel = new JLabel(module.getLanguage());
+                langLabel.setForeground(foreground);
+                langLabel.setPreferredSize(new Dimension(35, langLabel.getPreferredSize().height));
+                gbc.gridx = 0;
+                gbc.weightx = 0; // Does not expand
+                gbc.fill = GridBagConstraints.HORIZONTAL;
+                gbc.insets = new Insets(1, 2, 1, 2);
+                gbc.anchor = GridBagConstraints.WEST;
+                panel.add(langLabel, gbc);
+    
+                JLabel nameLabel = new JLabel(module.getName());
+                nameLabel.setForeground(foreground);
+                nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD));
+                nameLabel.setPreferredSize(new Dimension(80, nameLabel.getPreferredSize().height));
+                gbc.gridx = 1;
+                gbc.weightx = 0;
+                panel.add(nameLabel, gbc);
+    
+                JLabel descLabel = new JLabel(module.getDescription());
+                descLabel.setForeground(foreground);
+                gbc.gridx = 2;
+                gbc.weightx = 1.0;
+                panel.add(descLabel, gbc);
+    
+                return panel;
             }
             return this;
         }
