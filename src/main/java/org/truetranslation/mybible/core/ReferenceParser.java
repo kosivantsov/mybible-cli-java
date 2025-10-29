@@ -87,7 +87,9 @@ public class ReferenceParser {
                 endRef = parseSubPart(rangeParts[1], state);
                 if (endRef == null) return new ArrayList<>();
 
-                if (!state.wasVerse) {
+                if (isFullBookReference(rangeParts[1].trim())) {
+                    endRef = findLastVerseOfBook(endRef.getBook(), state.bookString);
+                } else if (!state.wasVerse) {
                     int endChapterKey = endRef.getBook() * 1000 + endRef.getChapter();
                     int lastVerseOfEndChapter = verseIndex.getOrDefault(endChapterKey, 1);
                     endRef = new Reference(endRef.getBook(), endRef.getChapter(), lastVerseOfEndChapter, endRef.getBookName());
