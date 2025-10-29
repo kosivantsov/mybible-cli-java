@@ -61,7 +61,7 @@ public class Gui extends JFrame {
         this.configManager = new ConfigManager();
         this.moduleScanner = new ModuleScanner();
         this.onWindowClosed = onWindowClosed;
-        this.bundle = ResourceBundle.getBundle("gui");
+        this.bundle = ResourceBundle.getBundle("i18n.gui");
         this.guiConfigManager = new GuiConfigManager();
         this.guiConfig = guiConfigManager.getConfig();
 

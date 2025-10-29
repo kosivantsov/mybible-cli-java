@@ -50,7 +50,7 @@ public class ConfigurationDialog extends JDialog {
         this.owner = owner;
         this.configManager = configManager;
         this.config = configManager.getConfig();
-        this.bundle = ResourceBundle.getBundle("gui");
+        this.bundle = ResourceBundle.getBundle("i18n.gui");
         this.chosenBackgroundColor = config.textAreaBackground;
 
         setTitle(bundle.getString("dialog.title.configure"));

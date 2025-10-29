@@ -12,7 +12,7 @@ public class BookMappingManager {
 
     private static final String DEFAULT_MAPPING_FILENAME = "default_mapping.json";
 
-    private static final ResourceBundle bundle = ResourceBundle.getBundle("messages");
+    private static final ResourceBundle bundle = ResourceBundle.getBundle("i18n.messages");
 
     /**
      * Gets the default BookMapper by ensuring default_mapping.json exists.

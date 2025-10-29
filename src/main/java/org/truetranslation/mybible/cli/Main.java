@@ -42,7 +42,7 @@ import picocli.CommandLine.Spec;
     name = "mybible-cli",
     mixinStandardHelpOptions = true,
     versionProvider = Main.VersionProvider.class,
-    description = "A command-line tool for reading MyBible modules.",
+    resourceBundle = "picocli.main",
     subcommands = {
         Main.GetCommand.class,
         Main.ListCommand.class,
@@ -55,8 +55,6 @@ import picocli.CommandLine.Spec;
 public class Main implements Callable<Integer> {
 
     static {
-        // This block runs before main() and ensures the locale is set
-        // for the entire application, including all Swing components.
         String language = System.getProperty("user.language");
         String country = System.getProperty("user.country");
 
@@ -67,9 +65,8 @@ public class Main implements Callable<Integer> {
                 Locale.setDefault(new Locale(language));
             }
         }
-        // If the properties are not set, it will just use the JVM's default.
     }
-    private static final ResourceBundle bundle = ResourceBundle.getBundle("messages");
+    private static final ResourceBundle bundle = ResourceBundle.getBundle("i18n.messages");
 
     @Override
     public Integer call() {
@@ -77,27 +74,27 @@ public class Main implements Callable<Integer> {
         return 0;
     }
 
-    @Command(name = "get", description = "Fetches and displays Bible verses.")
+    @Command(name = "get", resourceBundle = "picocli.get")
     static class GetCommand implements Callable<Integer> {
-        @Option(names = {"-m", "--module-name"}, description = "Name of the module. If omitted, the last-used module is assumed.")
+        @Option(names = {"-m", "--module-name"}, descriptionKey = "modulename")
         private String moduleName;
-        @Option(names = {"-r", "--reference"}, required = true, description = "The Bible reference (e.g., 'Gen 1:1-5').")
+        @Option(names = {"-r", "--reference"}, required = true, descriptionKey = "reference")
         private String referenceString;
-        @Option(names = {"-A", "--self-abbr"}, description = "Use book abbreviations from the module itself for parsing.")
+        @Option(names = {"-A", "--self-abbr"}, descriptionKey = "selfabbr")
         private boolean useSelfAbbreviations;
         
-        @Option(names = {"-a", "--abbr-prefix"}, description = "Use a custom abbreviations mapping file (e.g., <prefix>_mapping.json).")
+        @Option(names = {"-a", "--abbr-prefix"}, descriptionKey = "abbrprefix")
         private String abbreviationsPrefix;
 
-        @Option(names = {"-f", "--format"}, description = "Custom output format string.")
+        @Option(names = {"-f", "--format"}, descriptionKey = "format")
         private String formatString;
-        @Option(names = {"-F", "--save-format"}, description = "Use and save a new default format string.")
+        @Option(names = {"-F", "--save-format"}, descriptionKey = "saveformat")
         private String saveFormatString;
-        @Option(names = {"-j", "--json"}, description = "JSON output.")
+        @Option(names = {"-j", "--json"}, descriptionKey = "json")
         private boolean outputJson;
-        @Option(names = "--verbose", description = "Enable verbose informational messages.")
+        @Option(names = {"-v", "--verbose"}, descriptionKey = "verbose")
         private boolean verbose;
-        @Option(names = "--silent", description = "Disable informational messages.")
+        @Option(names = {"-s", "--silent"}, descriptionKey = "silent")
         private boolean silent;
 
         @Override
@@ -231,10 +228,10 @@ public class Main implements Callable<Integer> {
         }
     }
 
-    @Command(name = "help", description = "Displays help information about a topic.")
+    @Command(name = "help", resourceBundle = "picocli.help")
     static class HelpCommand implements Callable<Integer> {
         @Spec CommandSpec spec;
-        @Parameters(index = "0", description = "The topic to get help on (format, version, get, etc.).", arity = "0..1")
+        @Parameters(index = "0", descriptionKey = "description", arity = "0..1")
         private String topic;
         @Override
         public Integer call() {
@@ -243,7 +240,7 @@ public class Main implements Callable<Integer> {
                 mainCommand.usage(System.out);
                 System.out.println();
                 System.out.println(bundle.getString("help.header"));
-                List<String> topics = Arrays.asList("get", "list", "parse", "open", "gui", "format");
+                List<String> topics = Arrays.asList("get", "list", "parse", "open", "gui", "help", "format");
                 for (String topicName : topics) {
                     String description = bundle.getString("help.topic." + topicName + ".description");
                     String formattedLine = String.format("  @|bold %-6s|@ %s", topicName, description);
@@ -263,12 +260,12 @@ public class Main implements Callable<Integer> {
         }
     }
 
-    @Command(name = "gui", description = "Launches the graphical user interface.")
+    @Command(name = "gui", resourceBundle = "picocli.gui")
     static class GuiCommand implements Callable<Integer> {
-        @Option(names = {"-m", "--module-name"}, description = "Module name to load on startup.")
+        @Option(names = {"-m", "--module-name"}, descriptionKey = "module")
         String moduleName;
 
-        @Option(names = {"-r", "--reference"}, description = "Bible reference to display on startup.")
+        @Option(names = {"-r", "--reference"}, descriptionKey = "reference")
         String reference;
 
         @Override
@@ -283,9 +280,9 @@ public class Main implements Callable<Integer> {
         }
     }
 
-    @Command(name = "list", description = "Lists available MyBible modules.")
+    @Command(name = "list", resourceBundle = "picocli.list")
     static class ListCommand implements Callable<Integer> {
-        @Option(names = {"-p", "--path"}, description = "Set and save a new path to the folder containing modules.")
+        @Option(names = {"-p", "--path"}, descriptionKey = "path")
         File modulesPath;
         @Override
         public Integer call() {
@@ -319,21 +316,21 @@ public class Main implements Callable<Integer> {
         }
     }
 
-    @Command(name = "parse", description = "Parses a reference string, validates it, and returns ranges and verse counts.")
+    @Command(name = "parse", resourceBundle = "picocli.parse")
     static class ParseCommand implements Callable<Integer> {
-        @Option(names = {"-m", "--module-name"}, description = "Name of the module. If omitted, the last-used module is assumed.")
+        @Option(names = {"-m", "--module-name"}, descriptionKey = "modulename")
         private String moduleName;
 
-        @Option(names = {"-j", "--json"}, description = "Output parsed results in JSON.")
+        @Option(names = {"-j", "--json"}, descriptionKey = "json")
         private boolean outputJson;
 
-        @Option(names = {"-r", "--reference"}, required = true, description = "The Bible reference to parse (e.g., 'Gen 1:1-5').")
+        @Option(names = {"-r", "--reference"}, required = true, descriptionKey = "reference")
         private String referenceString;
         
-        @Option(names = "-A", description = "Use module-specific book name abbreviations if available.")
+        @Option(names = {"-A", "--self-abbr"}, descriptionKey = "selfabbr")
         private boolean useModuleAbbreviations;
 
-        @Option(names = "-a", paramLabel = "<prefix>", description = "Use custom book name mapping from '<config_folder>/<prefix>_mapping.json'.")
+        @Option(names = {"-a", "--abbr-prefix"}, paramLabel = "<prefix>", descriptionKey = "abbrprefix")
         private String customMappingPrefix;
 
         @Override
@@ -406,7 +403,7 @@ public class Main implements Callable<Integer> {
         }
     }
 
-    @Command(name = "open", description = "Opens configuration or module folders.", subcommands = {OpenCommand.OpenConfig.class, OpenCommand.OpenModule.class})
+    @Command(name = "open", resourceBundle = "picocli.open", subcommands = {OpenCommand.OpenConfig.class, OpenCommand.OpenModule.class})
     static class OpenCommand implements Callable<Integer> {
         @Override
         public Integer call() {
@@ -415,7 +412,7 @@ public class Main implements Callable<Integer> {
             return 1;
         }
 
-        @Command(name="config", description = "Opens the application's configuration directory.")
+        @Command(name="config", resourceBundle = "picocli.open")
         static class OpenConfig implements Callable<Integer> {
             @Override
             public Integer call() {
@@ -438,7 +435,7 @@ public class Main implements Callable<Integer> {
             }
         }
 
-        @Command(name="module", description = "Opens the directory where Bible modules are stored.")
+        @Command(name="module", resourceBundle = "picocli.open")
         static class OpenModule implements Callable<Integer> {
             @Override
             public Integer call() {

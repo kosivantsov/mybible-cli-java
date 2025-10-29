@@ -23,6 +23,10 @@ The primary goal of MyBible-CLI is to provide a fast and comprehensive command-l
 *   **Customizable Text Display**: Adjust fonts, colors, and styles for verse text, numbers, words of Jesus, and other elements.
 *   **Easy Configuration**: Visually set the module path and select custom book name mappings.
 *   **Convenient Actions**: Copy formatted text in both rich and plain text formats and for use in other applications and use standard keyboard shortcuts for navigation.
+<p>
+  <img src="screenshots/mac_Light.png" width="49%">
+  <img src="screenshots/mac_Dark.png" width="49%">
+</p>
 
 ## Usage
 

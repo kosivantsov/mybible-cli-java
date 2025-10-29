@@ -52,7 +52,7 @@ public class ReferenceParser {
     public ReferenceParser(BookMapper bookMapper, Map<Integer, Integer> verseIndex) {
         this.bookMapper = bookMapper;
         this.verseIndex = verseIndex;
-        this.bundle = ResourceBundle.getBundle("messages");
+        this.bundle = ResourceBundle.getBundle("i18n.messages");
     }
 
     public List<RangeWithCount> parseWithCounts(String rawReference) {

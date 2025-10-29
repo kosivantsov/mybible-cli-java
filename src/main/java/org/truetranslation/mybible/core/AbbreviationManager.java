@@ -29,7 +29,7 @@ public class AbbreviationManager {
 
     public AbbreviationManager(ConfigManager configManager, int verbosity) {
         this.moduleDataDir = configManager.getDefaultConfigDir().resolve("moduledata");
-        this.bundle = ResourceBundle.getBundle("messages");
+        this.bundle = ResourceBundle.getBundle("i18n.messages");
         this.verbosity = verbosity;
     }
 
