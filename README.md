@@ -183,7 +183,8 @@ This project is built using Gradle.
 
 ## Credits and Thanks
 
-This tool would not be possible without the incredible work done by the creators of the [MyBible](https://mybible.zone) project. The **MyBible** name and module format are the intellectual property of the MyBible project.
+This tool would not be possible without the incredible work done by the creators of the [MyBible](https://mybible.zone) project.  
+The **MyBible** name, icon and module format are the intellectual property of the MyBible project.
 
 This application was also inspired by [`diatheke`](https://wiki.crosswire.org/Frontends:Diatheke) and the [Crosswire Sword](http://www.crosswire.org/sword/index.jsp) project.
 
