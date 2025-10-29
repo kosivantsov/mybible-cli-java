@@ -20,6 +20,9 @@ public class ConfigurationDialog extends JDialog {
     private final ResourceBundle bundle;
     private Color chosenBackgroundColor;
 
+    private final LookAndFeel originalLaf;
+    private boolean saved = false;
+
     private static class ThemeInfo {
         final String name;
         final String className;
@@ -53,7 +56,10 @@ public class ConfigurationDialog extends JDialog {
         this.bundle = ResourceBundle.getBundle("i18n.gui");
         this.chosenBackgroundColor = config.textAreaBackground;
 
+        this.originalLaf = UIManager.getLookAndFeel();
+
         setTitle(bundle.getString("dialog.title.configure"));
+        setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
 
         JPanel mainPanel = new JPanel(new GridBagLayout());
@@ -92,7 +98,7 @@ public class ConfigurationDialog extends JDialog {
         lafComboBox.addActionListener(e -> {
             ThemeInfo selectedTheme = (ThemeInfo) lafComboBox.getSelectedItem();
             if (selectedTheme != null) {
-                previewLookAndFeel(selectedTheme.className);
+                SwingUtilities.invokeLater(() -> previewLookAndFeel(selectedTheme.className));
             }
         });
 
@@ -116,6 +122,8 @@ public class ConfigurationDialog extends JDialog {
             config.textAreaBackground = chosenBackgroundColor;
             ensureAllStylesExist();
             configManager.saveConfig();
+
+            saved = true;
             applyLookAndFeel();
             dispose();
         });
@@ -124,6 +132,14 @@ public class ConfigurationDialog extends JDialog {
 
         pack();
         setLocationRelativeTo(owner);
+    }
+    
+    @Override
+    public void dispose() {
+        if (!saved) {
+            restoreOriginalLaf();
+        }
+        super.dispose();
     }
     
     private void initEscapeToClose() {
@@ -145,7 +161,7 @@ public class ConfigurationDialog extends JDialog {
             config.styles.putIfAbsent(key, defaultConfig.styles.get(key));
         }
     }
-
+    
     private void addStyleRow(JPanel panel, int y, String labelText, String styleKey) {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(2, 5, 2, 5); gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -178,43 +194,35 @@ public class ConfigurationDialog extends JDialog {
         panel.add(configureButton, gbc);
     }
     
-    /**
-     * Applies the chosen Look and Feel to the owner frame permanently.
-     */
     private void applyLookAndFeel() {
         try {
             UIManager.setLookAndFeel(config.lookAndFeelClassName);
             SwingUtilities.updateComponentTreeUI(owner);
-            
-            // Use validate() and repaint() instead of pack() to prevent resizing.
             owner.validate();
             owner.repaint();
-
         } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
 
-    /**
-     * Applies a Look and Feel temporarily to this dialog for preview purposes,
-     * without affecting the rest of the application.
-     * @param lafClassName The class name of the Look and Feel to preview.
-     */
+    private void restoreOriginalLaf() {
+        try {
+            if (!UIManager.getLookAndFeel().getName().equals(originalLaf.getName())) {
+                UIManager.setLookAndFeel(originalLaf);
+                SwingUtilities.updateComponentTreeUI(owner);
+            }
+        } catch (UnsupportedLookAndFeelException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void previewLookAndFeel(String lafClassName) {
-        LookAndFeel originalLaf = UIManager.getLookAndFeel();
         try {
             UIManager.setLookAndFeel(lafClassName);
             SwingUtilities.updateComponentTreeUI(this);
             pack();
-
         } catch (Exception ex) {
             ex.printStackTrace();
-        } finally {
-            try {
-                UIManager.setLookAndFeel(originalLaf);
-            } catch (UnsupportedLookAndFeelException e) {
-                e.printStackTrace();
-            }
         }
     }
 }
