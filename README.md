@@ -6,7 +6,7 @@ This is a cross-platform Java application for getting text from [MyBible](https:
 
 This project was inspired by [`diatheke`](https://wiki.crosswire.org/Frontends:Diatheke), the standard command-line tool for [Crosswire Sword](http://www.crosswire.org/sword/index.jsp) modules. While powerful, `diatheke` works only with Crosswire Sword modules and does not support the [MyBible format](https://mybible.zone/modules/), which has an extensive library of high-quality modules.
 
-The primary goal of MyBible-CLI is to provide a fast and comprehensive command-line interface (CLI) for quick access to biblical text. Currently, only Bible modules are supported; other types, such as commentaries or dictionaries, are not. For searches and text analysis, the command-line output from MyBible-CLI can be piped to other tools, so neither the CLI nor the GUI mode includes built-in search functionality.
+The primary goal of MyBible-CLI is to provide a fast and comprehensive command-line interface (CLI) for quick access to biblical text. It is not designed as a Bible **study** tool but rather as an auxiliary and quick way to retrieve biblical text for use in other applications. Currently, only Bible modules are supported; other types, such as commentaries or dictionaries, are not. For searches and text analysis, the command-line output from MyBible-CLI can be piped to other tools, so neither the CLI nor the GUI mode includes built-in search functionality.
 
 ## Features
 
