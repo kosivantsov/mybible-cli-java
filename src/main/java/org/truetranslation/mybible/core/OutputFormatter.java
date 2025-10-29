@@ -25,6 +25,7 @@ public class OutputFormatter {
     private static final String START_ITALICS = "\u001B[3m";
     private static final String START_LIGHTBLUE_ITALICS = "\u001B[3;34m";
     private static final String START_LIGHTGREY_ITALICS = "\u001B[3;90m";
+    private static final String START_CYAN = "\u001B[36m";
 
     public OutputFormatter(String formatString, BookMapper defaultBookMapper, BookMapper moduleBookMapper, String moduleName) {
         this.formatString = formatString;
@@ -37,6 +38,7 @@ public class OutputFormatter {
         String temp = text;
         temp = temp.replaceAll("\\[\\d+\\]", ""); 
         temp = temp.replaceAll("(?i)<[SGH]>\\s*[0-9]+\\s*</[SGH]>", " ");
+        temp = temp.replaceAll("(?i)<m>.*?</m>", " ");
         temp = temp.replaceAll("<[^>]+>", " ");
         return temp.trim().replaceAll("\\s+", " ");
     }
@@ -45,6 +47,7 @@ public class OutputFormatter {
         String temp = text;
         temp = temp.replaceAll("\\[\\d+\\]", " ");
         temp = temp.replaceAll("(?i)<[SGH]>\\s*[0-9]+\\s*</[SGH]>", " ");
+        temp = temp.replaceAll("(?i)<m>.*?</m>", " ");
         if (temp.trim().startsWith("<pb/>")) {
             temp = temp.replaceFirst("<pb/>", "").trim();
         }
@@ -69,6 +72,22 @@ public class OutputFormatter {
         tempText = Arrays.stream(tempText.split("\n"))
                 .map(line -> line.trim().replaceAll("\\s+", " "))
                 .collect(Collectors.joining(multiline ? "\n" : " "));
+                
+        if (includeStrongs) {
+            Pattern mTagPattern = Pattern.compile("(?i)<m>(.*?)</m>");
+            Matcher mMatcher = mTagPattern.matcher(tempText);
+            StringBuffer sb = new StringBuffer();
+            while (mMatcher.find()) {
+                String content = mMatcher.group(1);
+                String replacement = START_CYAN + "{" + content + "}" + RESET_TO_NORMAL;
+                mMatcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+            }
+            mMatcher.appendTail(sb);
+            tempText = sb.toString();
+        } else {
+            tempText = tempText.replaceAll("(?i)<m>.*?</m>", "");
+        }
+
         if (!includeStrongs) {
             tempText = tempText.replaceAll("(?i)<S>.*?</S>", "");
         }
