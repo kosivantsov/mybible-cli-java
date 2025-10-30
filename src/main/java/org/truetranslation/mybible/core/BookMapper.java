@@ -3,6 +3,7 @@ package org.truetranslation.mybible.core;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import org.truetranslation.mybible.core.model.Book;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -12,11 +13,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 
 public class BookMapper {
 
     private final Map<Integer, Book> booksByNumber = new HashMap<>();
-    private final Map<String, Book> booksByName = new HashMap<>();
+    private final Map<String, Book> booksByName = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
     public BookMapper(String resourcePath) {
         try (InputStream is = BookMapper.class.getResourceAsStream(resourcePath)) {
@@ -29,6 +31,7 @@ public class BookMapper {
         }
     }
 
+    // This constructor now correctly handles the Map<String, List<String>> type
     public BookMapper(Map<String, List<String>> abbreviations) {
         loadMapping(abbreviations);
     }
@@ -39,6 +42,7 @@ public class BookMapper {
 
     private void loadFromInputStream(InputStream inputStream) throws IOException {
         try (InputStreamReader reader = new InputStreamReader(inputStream)) {
+            // The JSON is a map of String (book number) to a list of String names
             Type type = new TypeToken<Map<String, List<String>>>() {}.getType();
             Map<String, List<String>> abbreviations = new Gson().fromJson(reader, type);
             loadMapping(abbreviations);
@@ -53,14 +57,15 @@ public class BookMapper {
                 List<String> names = entry.getValue();
                 if (names != null && !names.isEmpty()) {
                     String fullName = names.get(0);
-                    List<String> shortNames = new ArrayList<>(names.subList(1, names.size()));
+                    // Use the rest of the list for short names/aliases
+                    List<String> allNamesAndAliases = new ArrayList<>(names);
 
-                    Book book = new Book(bookNumber, fullName, shortNames);
+                    Book book = new Book(bookNumber, fullName, allNamesAndAliases);
                     booksByNumber.put(bookNumber, book);
 
-                    booksByName.put(fullName.toLowerCase(), book);
-                    for (String name : shortNames) {
-                        booksByName.put(name.toLowerCase(), book);
+                    // The TreeMap handles case-insensitivity automatically.
+                    for (String name : allNamesAndAliases) {
+                        booksByName.put(name.trim(), book);
                     }
                 }
             } catch (NumberFormatException e) {
@@ -74,6 +79,7 @@ public class BookMapper {
     }
 
     public Optional<Book> getBook(String name) {
-        return Optional.ofNullable(booksByName.get(name.toLowerCase()));
+        // The lookup is inherently case-insensitive.
+        return Optional.ofNullable(booksByName.get(name));
     }
 }

@@ -171,6 +171,7 @@ public class ReferenceParser {
     private Reference parseSubPart(String part, ParseState state) {
         try {
             String trimmedPart = part.trim();
+            trimmedPart = trimmedPart.replace(".", "");
             String[] tokens = trimmedPart.split("\\s+");
             String bookString = null;
             Integer bookNum = null;
