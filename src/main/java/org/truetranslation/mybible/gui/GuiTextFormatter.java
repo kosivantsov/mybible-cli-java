@@ -39,7 +39,7 @@ public class GuiTextFormatter {
                         appendSimpleText(doc, processedFormat.substring(lastEnd, matcher.start()), "defaultText");
                     }
 
-                    if (matcher.group(1) != null) { // % specifier
+                    if (matcher.group(1) != null) {
                         String specifier = matcher.group(1);
                         switch (specifier) {
                             case "a": appendSimpleText(doc, verse.defaultShortBookName, "bookName"); break;
@@ -62,7 +62,7 @@ public class GuiTextFormatter {
                                 appendSimpleText(doc, "%" + specifier, "defaultText");
                                 break;
                         }
-                    } else if (matcher.group(2) != null) { // \n escape
+                    } else if (matcher.group(2) != null) {
                         doc.insertString(doc.getLength(), "\n", createStyleFromConfig("defaultText"));
                     }
                     lastEnd = matcher.end();
@@ -88,7 +88,9 @@ public class GuiTextFormatter {
         String temp = rawText
             .replaceAll("\\[\\d+\\]", "")
             .replaceAll("(?i)<f>.*?</f>|</?t>|~|@|@[^ ]+? ", " ")
-            .replaceAll("(?i)<[SGH]>\\s*\\d+\\s*</[SGH]>", " ");
+            .replaceAll("(?i)<[SGH]>\\s*\\d+\\s*</[SGH]>", " ")
+            .replaceAll("(?i)<m>.*?</m>", " ")
+            .replaceAll("(?i)<n>.*?</n>", " ");
         
         if (multiline) {
             if (temp.trim().startsWith("<pb/>")) {
@@ -127,13 +129,17 @@ public class GuiTextFormatter {
                 .collect(Collectors.joining(multiline ? "\n" : " "));
 
         if (!withStrongs) {
+            // For %Y and %Z, strip out Strong's, morphology, and alternative text.
             tempText = tempText.replaceAll("(?i)<[SGH]>.*?</[SGH]>", "");
+            tempText = tempText.replaceAll("(?i)<m>.*?</m>", "");
+            tempText = tempText.replaceAll("(?i)<n>.*?</n>", "");
         }
 
-        Pattern pattern = Pattern.compile("(?i)(</?(?:J|E|I|N|S)>)|([^<]+)");
+        Pattern pattern = Pattern.compile("(?i)(</?(?:J|E|I|N|S|M)>)|([^<]+)");
         Matcher matcher = pattern.matcher(tempText);
         
         Stack<Style> styleStack = new Stack<>();
+        // Use default 'verseText' as the base style
         styleStack.push(createStyleFromConfig("verseText"));
 
         while (matcher.find()) {
@@ -148,6 +154,9 @@ public class GuiTextFormatter {
                     if (tagName.equals("S")) {
                         doc.insertString(doc.getLength(), "}", styleStack.peek());
                     }
+                    if (tagName.equals("M")) {
+                        doc.insertString(doc.getLength(), "}", styleStack.peek());
+                    }
                     if (styleStack.size() > 1) {
                         styleStack.pop();
                     }
@@ -159,7 +168,11 @@ public class GuiTextFormatter {
                         case "J": newStyle = createStyleFromConfig("wordsOfJesus"); break;
                         case "E": StyleConstants.setBold(newStyle, true); break;
                         case "I": StyleConstants.setItalic(newStyle, true); break;
-                        case "N": newStyle = createStyleFromConfig("verse"); break;
+                        case "N": newStyle = createStyleFromConfig("alternativeVerseText"); break;
+                        case "M":
+                            newStyle = createStyleFromConfig("morphologyInfo");
+                            doc.insertString(doc.getLength(), "{", newStyle);
+                            break;
                         case "S":
                             newStyle = createStyleFromConfig("strongsNumber");
                             doc.insertString(doc.getLength(), "{", newStyle);
@@ -177,10 +190,16 @@ public class GuiTextFormatter {
         TextStyle ts = config.styles.get(key);
         if (ts == null) {
             ts = new GuiConfig().styles.get(key);
-            if (ts == null) return null;
+            if (ts == null) {
+                 Style defaultStyle = styleContext.addStyle("default", null);
+                 StyleConstants.setFontFamily(defaultStyle, "SansSerif");
+                 StyleConstants.setFontSize(defaultStyle, 12);
+                 return defaultStyle;
+            }
         }
 
-        Style style = styleContext.addStyle(key + System.currentTimeMillis(), null);
+        // Use a unique name for the style to avoid conflicts
+        Style style = styleContext.addStyle(key + System.nanoTime(), null);
         StyleConstants.setFontFamily(style, ts.fontName);
         StyleConstants.setFontSize(style, ts.fontSize);
         StyleConstants.setBold(style, (ts.fontStyle & Font.BOLD) != 0);

@@ -14,7 +14,7 @@ import java.util.ResourceBundle;
 
 public class ConfigurationDialog extends JDialog {
 
-    private final GuiConfig config;
+    private GuiConfig config;
     private final GuiConfigManager configManager;
     private final JFrame owner;
     private final ResourceBundle bundle;
@@ -22,6 +22,10 @@ public class ConfigurationDialog extends JDialog {
 
     private final LookAndFeel originalLaf;
     private boolean saved = false;
+
+    private JTextField formatStringField;
+    private JComboBox<ThemeInfo> lafComboBox;
+    private JButton colorButton;
 
     private static class ThemeInfo {
         final String name;
@@ -62,65 +66,30 @@ public class ConfigurationDialog extends JDialog {
         setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
 
-        JPanel mainPanel = new JPanel(new GridBagLayout());
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5); gbc.fill = GridBagConstraints.HORIZONTAL;
-
-        gbc.gridy = 0; gbc.gridx = 0; mainPanel.add(new JLabel(bundle.getString("label.formatString")), gbc);
-        gbc.gridx = 1; gbc.gridwidth = 2; gbc.weightx = 1.0;
-        JTextField formatStringField = new JTextField(config.formatString, 30);
-        mainPanel.add(formatStringField, gbc);
-
-        addStyleRow(mainPanel, 1, bundle.getString("label.bookName"), "bookName");
-        addStyleRow(mainPanel, 2, bundle.getString("label.chapterNumber"), "chapter");
-        addStyleRow(mainPanel, 3, bundle.getString("label.verseNumber"), "verse");
-        addStyleRow(mainPanel, 4, bundle.getString("label.verseText"), "verseText");
-        addStyleRow(mainPanel, 5, bundle.getString("label.moduleName"), "moduleName");
-        addStyleRow(mainPanel, 6, bundle.getString("label.strongsNumbers"), "strongsNumber");
-        addStyleRow(mainPanel, 7, bundle.getString("label.wordsOfJesus"), "wordsOfJesus");
-        addStyleRow(mainPanel, 8, bundle.getString("label.defaultText"), "defaultText");
-        addStyleRow(mainPanel, 9, bundle.getString("label.infoText"), "infoText");
-
-        gbc.gridy = 10; gbc.gridx = 0; gbc.gridwidth = 1; gbc.weightx = 0;
-        mainPanel.add(new JLabel(bundle.getString("label.backgroundColor")), gbc);
-        gbc.gridx = 1; gbc.gridwidth = 1;
-        JButton colorButton = new JButton(bundle.getString("button.choose"));
-        mainPanel.add(colorButton, gbc);
-
-        gbc.gridy = 11; gbc.gridx = 0; gbc.gridwidth = 1;
-        mainPanel.add(new JLabel(bundle.getString("label.lookAndFeel")), gbc);
-        gbc.gridx = 1; gbc.gridwidth = 2; gbc.weightx = 1.0;
-        JComboBox<ThemeInfo> lafComboBox = new JComboBox<>(THEMES.toArray(new ThemeInfo[0]));
-        THEMES.stream().filter(t -> t.className.equals(config.lookAndFeelClassName)).findFirst().ifPresent(lafComboBox::setSelectedItem);
-        mainPanel.add(lafComboBox, gbc);
-        
-        lafComboBox.addActionListener(e -> {
-            ThemeInfo selectedTheme = (ThemeInfo) lafComboBox.getSelectedItem();
-            if (selectedTheme != null) {
-                SwingUtilities.invokeLater(() -> previewLookAndFeel(selectedTheme.className));
-            }
-        });
-
+        JPanel mainPanel = createMainPanel();
         add(mainPanel, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton resetButton = new JButton(bundle.getString("button.resetDefaults"));
         JButton saveButton = new JButton(bundle.getString("button.save"));
         JButton cancelButton = new JButton(bundle.getString("button.cancel"));
-        buttonPanel.add(saveButton); buttonPanel.add(cancelButton);
+        
+        buttonPanel.add(resetButton);
+        buttonPanel.add(saveButton); 
+        buttonPanel.add(cancelButton);
         add(buttonPanel, BorderLayout.SOUTH);
 
-        colorButton.addActionListener(e -> {
-            Color newColor = JColorChooser.showDialog(this, bundle.getString("dialog.title.chooseColor"), chosenBackgroundColor);
-            if (newColor != null) chosenBackgroundColor = newColor;
-        });
-
+        resetButton.addActionListener(e -> resetToDefaults());
         cancelButton.addActionListener(e -> dispose());
         saveButton.addActionListener(e -> {
+            // Update the config object from the UI fields
             config.formatString = formatStringField.getText();
             config.lookAndFeelClassName = ((ThemeInfo) lafComboBox.getSelectedItem()).className;
             config.textAreaBackground = chosenBackgroundColor;
             ensureAllStylesExist();
+            
+            // Set the new config in the manager and then save it
+            configManager.setConfig(this.config);
             configManager.saveConfig();
 
             saved = true;
@@ -132,6 +101,112 @@ public class ConfigurationDialog extends JDialog {
 
         pack();
         setLocationRelativeTo(owner);
+    }
+
+    private void resetToDefaults() {
+        int response = JOptionPane.showConfirmDialog(
+            this,
+            bundle.getString("dialog.message.resetConfirm"),
+            bundle.getString("dialog.title.resetConfirm"),
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE
+        );
+
+        if (response == JOptionPane.YES_OPTION) {
+            // Create a new default config object
+            GuiConfig defaultConfig = new GuiConfig();
+            
+            // Set the default config in the manager and save it immediately
+            configManager.setConfig(defaultConfig);
+            configManager.saveConfig();
+            
+            // Update the dialog's internal config to match the newly loaded one
+            this.config = configManager.getConfig();
+            
+            // Update all UI elements from the new default config
+            updateUiFromConfig();
+            
+            // Immediately apply the visual changes to the main application window
+            applyLookAndFeel();
+        }
+    }
+    
+    private void updateUiFromConfig() {
+        // Update format string
+        formatStringField.setText(this.config.formatString);
+        
+        // Update background color
+        chosenBackgroundColor = this.config.textAreaBackground;
+        colorButton.setBackground(chosenBackgroundColor != null ? chosenBackgroundColor : UIManager.getColor("Button.background"));
+
+        // Update Look and Feel dropdown
+        THEMES.stream()
+              .filter(t -> t.className.equals(this.config.lookAndFeelClassName))
+              .findFirst()
+              .ifPresent(lafComboBox::setSelectedItem);
+              
+        // Re-create the main panel to update all style rows
+        getContentPane().remove(0);
+        JPanel newMainPanel = createMainPanel();
+        add(newMainPanel, BorderLayout.CENTER);
+        
+        // Refresh the layout
+        revalidate();
+        repaint();
+        pack();
+    }
+    
+    private JPanel createMainPanel() {
+        JPanel mainPanel = new JPanel(new GridBagLayout());
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5); gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        gbc.gridy = 0; gbc.gridx = 0; mainPanel.add(new JLabel(bundle.getString("label.formatString")), gbc);
+        gbc.gridx = 1; gbc.gridwidth = 2; gbc.weightx = 1.0;
+        formatStringField = new JTextField(config.formatString, 30);
+        mainPanel.add(formatStringField, gbc);
+
+        addStyleRow(mainPanel, 1, bundle.getString("label.bookName"), "bookName");
+        addStyleRow(mainPanel, 2, bundle.getString("label.chapterNumber"), "chapter");
+        addStyleRow(mainPanel, 3, bundle.getString("label.verseNumber"), "verse");
+        addStyleRow(mainPanel, 4, bundle.getString("label.verseText"), "verseText");
+        addStyleRow(mainPanel, 5, bundle.getString("label.moduleName"), "moduleName");
+        addStyleRow(mainPanel, 6, bundle.getString("label.strongsNumbers"), "strongsNumber");
+        addStyleRow(mainPanel, 7, bundle.getString("label.morphologyInfo"), "morphologyInfo");
+        addStyleRow(mainPanel, 8, bundle.getString("label.alternativeVerseText"), "alternativeVerseText");
+        addStyleRow(mainPanel, 9, bundle.getString("label.wordsOfJesus"), "wordsOfJesus");
+        addStyleRow(mainPanel, 10, bundle.getString("label.defaultText"), "defaultText");
+        addStyleRow(mainPanel, 11, bundle.getString("label.infoText"), "infoText");
+        
+        gbc.gridy = 12; gbc.gridx = 0; gbc.gridwidth = 1; gbc.weightx = 0;
+        mainPanel.add(new JLabel(bundle.getString("label.backgroundColor")), gbc);
+        gbc.gridx = 1; gbc.gridwidth = 1;
+        colorButton = new JButton(bundle.getString("button.choose"));
+        colorButton.setBackground(chosenBackgroundColor != null ? chosenBackgroundColor : UIManager.getColor("Button.background"));
+        mainPanel.add(colorButton, gbc);
+        colorButton.addActionListener(e -> {
+            Color newColor = JColorChooser.showDialog(this, bundle.getString("dialog.title.chooseColor"), chosenBackgroundColor);
+            if (newColor != null) {
+                 chosenBackgroundColor = newColor;
+                 colorButton.setBackground(chosenBackgroundColor);
+            }
+        });
+
+        gbc.gridy = 13; gbc.gridx = 0; gbc.gridwidth = 1;
+        mainPanel.add(new JLabel(bundle.getString("label.lookAndFeel")), gbc);
+        gbc.gridx = 1; gbc.gridwidth = 2; gbc.weightx = 1.0;
+        lafComboBox = new JComboBox<>(THEMES.toArray(new ThemeInfo[0]));
+        THEMES.stream().filter(t -> t.className.equals(config.lookAndFeelClassName)).findFirst().ifPresent(lafComboBox::setSelectedItem);
+        mainPanel.add(lafComboBox, gbc);
+        lafComboBox.addActionListener(e -> {
+            ThemeInfo selectedTheme = (ThemeInfo) lafComboBox.getSelectedItem();
+            if (selectedTheme != null) {
+                SwingUtilities.invokeLater(() -> previewLookAndFeel(selectedTheme.className));
+            }
+        });
+        
+        return mainPanel;
     }
     
     @Override
@@ -181,7 +256,7 @@ public class ConfigurationDialog extends JDialog {
             if (currentStyle == null) {
                 currentStyle = new GuiConfig().styles.get(styleKey);
             }
-            Color previewBg = (config.textAreaBackground != null) ? config.textAreaBackground : UIManager.getColor("TextPane.background");
+            Color previewBg = (chosenBackgroundColor != null) ? chosenBackgroundColor : UIManager.getColor("TextPane.background");
             StyleEditorDialog editor = new StyleEditorDialog(this, currentStyle, bundle, previewBg);
             editor.setVisible(true);
 
@@ -198,6 +273,12 @@ public class ConfigurationDialog extends JDialog {
         try {
             UIManager.setLookAndFeel(config.lookAndFeelClassName);
             SwingUtilities.updateComponentTreeUI(owner);
+            
+            JTextPane textPane = findTextPane(owner);
+            if (textPane != null) {
+                textPane.setBackground(config.textAreaBackground);
+            }
+
             owner.validate();
             owner.repaint();
         } catch (Exception ex) {
@@ -205,9 +286,24 @@ public class ConfigurationDialog extends JDialog {
         }
     }
 
+    private JTextPane findTextPane(Container container) {
+        for (Component comp : container.getComponents()) {
+            if (comp instanceof JTextPane) {
+                return (JTextPane) comp;
+            }
+            if (comp instanceof Container) {
+                JTextPane found = findTextPane((Container) comp);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
     private void restoreOriginalLaf() {
         try {
-            if (!UIManager.getLookAndFeel().getName().equals(originalLaf.getName())) {
+            if (originalLaf != null && !UIManager.getLookAndFeel().getName().equals(originalLaf.getName())) {
                 UIManager.setLookAndFeel(originalLaf);
                 SwingUtilities.updateComponentTreeUI(owner);
             }

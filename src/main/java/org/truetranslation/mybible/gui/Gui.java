@@ -484,7 +484,7 @@ public class Gui extends JFrame {
                 langLabel.setForeground(foreground);
                 langLabel.setPreferredSize(new Dimension(35, langLabel.getPreferredSize().height));
                 gbc.gridx = 0;
-                gbc.weightx = 0; // Does not expand
+                gbc.weightx = 0;
                 gbc.fill = GridBagConstraints.HORIZONTAL;
                 gbc.insets = new Insets(1, 2, 1, 2);
                 gbc.anchor = GridBagConstraints.WEST;
