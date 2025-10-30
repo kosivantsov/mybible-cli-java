@@ -96,6 +96,8 @@ public class Main implements Callable<Integer> {
         private boolean verbose;
         @Option(names = {"-s", "--silent"}, descriptionKey = "silent")
         private boolean silent;
+        @Option(names = {"-z", "--no-ansi"}, descriptionKey = "noansi")
+        private boolean noansi;
 
         @Override
         public Integer call() {
@@ -168,7 +170,11 @@ public class Main implements Callable<Integer> {
                 if (! outputJson) {
                     for (Verse verse : verses) {
                         Reference containingRef = findContainingReference(ranges, verse);
-                        System.out.println(formatter.format(verse, containingRef));
+                        String formattedOutput = formatter.format(verse, containingRef);
+                        if (noansi) {
+                            formattedOutput = formattedOutput.replaceAll("\u001B\\[[;\\d]*m", "");
+                        }
+                        System.out.println(formattedOutput);
                     }
                 } else {
                     List<GuiVerse> guiVerses = new ArrayList<>();

@@ -39,6 +39,7 @@ public class OutputFormatter {
         temp = temp.replaceAll("\\[\\d+\\]", ""); 
         temp = temp.replaceAll("(?i)<[SGH]>\\s*[0-9]+\\s*</[SGH]>", " ");
         temp = temp.replaceAll("(?i)<m>.*?</m>", " ");
+        temp = temp.replaceAll("(?i)<n>.*?</n>", " ");
         temp = temp.replaceAll("<[^>]+>", " ");
         return temp.trim().replaceAll("\\s+", " ");
     }
@@ -48,6 +49,7 @@ public class OutputFormatter {
         temp = temp.replaceAll("\\[\\d+\\]", " ");
         temp = temp.replaceAll("(?i)<[SGH]>\\s*[0-9]+\\s*</[SGH]>", " ");
         temp = temp.replaceAll("(?i)<m>.*?</m>", " ");
+        temp = temp.replaceAll("(?i)<n>.*?</n>", " ");
         if (temp.trim().startsWith("<pb/>")) {
             temp = temp.replaceFirst("<pb/>", "").trim();
         }

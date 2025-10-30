@@ -129,10 +129,9 @@ public class GuiTextFormatter {
                 .collect(Collectors.joining(multiline ? "\n" : " "));
 
         if (!withStrongs) {
-            // For %Y and %Z, strip out Strong's, morphology, and alternative text.
+            // For %Y and %Z, strip out Strong's and morphology
             tempText = tempText.replaceAll("(?i)<[SGH]>.*?</[SGH]>", "");
             tempText = tempText.replaceAll("(?i)<m>.*?</m>", "");
-            tempText = tempText.replaceAll("(?i)<n>.*?</n>", "");
         }
 
         Pattern pattern = Pattern.compile("(?i)(</?(?:J|E|I|N|S|M)>)|([^<]+)");
