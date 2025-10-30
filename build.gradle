@@ -1,54 +1,28 @@
 plugins {
-    // Core Java support
     id 'java'
-    
-    // Support for creating a runnable application
     id 'application'
-    
-    // The NEW, modern ID for the Shadow plugin, compatible with modern Gradle
     id 'com.gradleup.shadow' version '8.3.6'
     id 'org.panteleyev.jpackageplugin' version '1.7.6'
 }
 
-// Project metadata
 group = 'org.truetranslation'
 version = '1.0'
 
-// Specify where to find the dependencies
 repositories {
     mavenCentral()
 }
 
-// Define the project's dependencies
 dependencies {
-    // For connecting to SQLite database files (.sqlite3)
     implementation 'org.xerial:sqlite-jdbc:3.45.1.0'
-
-    // A powerful framework for building command-line applications
     implementation 'info.picocli:picocli:4.7.7'
     annotationProcessor 'info.picocli:picocli-codegen:4.7.7'
-
-    // For parsing and writing JSON files (config.json, *_mapping.json)
     implementation 'com.google.code.gson:gson:2.10.1'
-
-    // For handling TSV files in your j2t/t2j conversion tools
-    implementation 'org.apache.commons:commons-csv:1.10.0'
-
-    // Standard testing framework
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
-
-    // SLF4J logging warnings
     implementation 'org.slf4j:slf4j-nop:1.7.32'
-
-    //LAF
     implementation 'com.formdev:flatlaf:3.2.5'
     implementation 'com.formdev:flatlaf-intellij-themes:3.2.5'
 }
 
-// Java language and compiler settings
 java {
-    // Set the Java version for source and target compatibility to 11
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
 }
@@ -56,64 +30,47 @@ java {
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
     
-    // Configure annotation processing for Picocli
-    // Use double quotes to allow variable expansion
     options.compilerArgs += [
         "-Aproject=${project.group}/${project.name}",
     ]
 }
 
-
-// Application plugin configuration
 application {
-    // Define the main entry point of the application
     mainClass = 'org.truetranslation.mybible.cli.Main'
-//    mainClass = 'org.truetranslation.mybible.gui.Gui'
     applicationDefaultJvmArgs = ["-Dfile.encoding=UTF-8", "-Dsun.stdout.encoding=UTF-8"]
 }
 
-// Shadow plugin configuration to create the single executable JAR
 shadowJar {
     archiveBaseName = 'mybible-cli'
-    archiveClassifier = '' // Prevents adding '-all' to the JAR name
-    archiveVersion = ''    // Removes the version number from the JAR name
-    
-    // Merge service files required for some libraries to work correctly in a fat JAR
+    archiveClassifier = ''
+    archiveVersion = ''
     mergeServiceFiles()
 }
 
-// JPackage task configuration
 jpackage {
     dependsOn 'shadowJar'
     
-    // Generic parameters
     appName = 'mybible-cli'
     appVersion = '1.0'
     vendor = 'Kos Ivantsov'
     copyright = 'Copyright © 2025 Kos Ivantsov'
     appDescription = 'MyBible CLI - A command-line and GUI tool for biblical text processing'
     
-    // Input configuration
     input = file("${buildDir}/libs")
     mainJar = 'mybible-cli.jar'
     mainClass = application.mainClass.get()
     
-    // Destination for the installers
     destination = layout.buildDirectory.dir('jpackage')
     
-    // JVM options
     javaOptions = [
         '-Dfile.encoding=UTF-8',
         '-Dsun.stdout.encoding=UTF-8'
     ]
     
-    // Platform-specific configurations
     mac {
-        // macOS-specific parameters
         macPackageIdentifier = 'org.truetranslation.mybible-cli'
         macPackageName = 'mybible-cli'
-        type = 'APP_IMAGE'  // Use string instead of enum reference
-        // Uncomment and provide icon if available:
+        type = 'APP_IMAGE'
         icon = file('src/main/resources/icons/mybible-cli.icns')
         macAppCategory = 'public.app-category.utilities'
         javaOptions = [
@@ -124,30 +81,23 @@ jpackage {
             '-Dapple.awt.application.name=mybible-cli',
             '-Xdock:name=mybible-cli'
         ]
-//        arguments = [
-//            '--mac-bundle-user-data', 'NSRequiresAquaSystemAppearance=false'
-//        ]
     }
     
     windows {
-        // Windows-specific parameters
         winMenu = true
         winDirChooser = true
         winShortcut = true
         winPerUserInstall = false
-        type = 'EXE'  // Use string instead of enum reference
-        // Uncomment and provide icon if available:
-        // icon = file('src/main/resources/icons/mybible-cli.ico')
+        type = 'EXE'
+        icon = file('src/main/resources/icons/mybible-cli.ico')
     }
     
     linux {
-        // Linux-specific parameters
         linuxPackageName = 'mybible-cli'
         linuxDebMaintainer = 'kos@truetranslation.org'
         linuxAppCategory = 'utils'
         linuxShortcut = true
-        type = 'DEB'  // Use string instead of enum reference
-        // Uncomment and provide icon if available:
-        // icon = file('src/main/resources/icons/mybible-cli.png')
+        type = 'DEB'
+        icon = file('src/main/resources/icons/mybible-cli.png')
     }
 }
