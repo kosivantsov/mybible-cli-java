@@ -9,6 +9,7 @@ import java.util.Map;
 public class GuiConfig {
     public String lookAndFeelClassName;
     public String formatString = "%A %c:%v %Y";
+    public boolean useModuleAbbreviations = false;
     public Map<String, TextStyle> styles = new HashMap<>();
     public boolean showRawJson = false;
     public Color textAreaBackground = null;

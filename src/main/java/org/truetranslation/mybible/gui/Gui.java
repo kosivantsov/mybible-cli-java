@@ -48,7 +48,8 @@ public class Gui extends JFrame {
     private JComboBox<ModuleScanner.Module> moduleComboBox;
     private JCheckBox rawJsonCheckbox;
     private JTextField mappingFileField;
-
+    private JCheckBox useModuleAbbrsCheckbox;
+    
     private final ConfigManager configManager;
     private final ModuleScanner moduleScanner;
     private final Runnable onWindowClosed;
@@ -166,6 +167,11 @@ public class Gui extends JFrame {
         JButton browseButton = new JButton(bundle.getString("button.browse"));
         inputPanel.add(browseButton, gbc);
 
+        gbc.gridy = 5; gbc.gridx = 1; gbc.gridwidth = 2;
+        useModuleAbbrsCheckbox = new JCheckBox(bundle.getString("label.useModuleAbbrs"));
+        useModuleAbbrsCheckbox.setSelected(guiConfig.useModuleAbbreviations);
+        inputPanel.add(useModuleAbbrsCheckbox, gbc);
+
         bottomContainer.add(inputPanel, BorderLayout.NORTH);
 
         JPanel actionButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
@@ -182,6 +188,12 @@ public class Gui extends JFrame {
         showButton.addActionListener(e -> updateAndDisplayVerseData());
         referenceInputField.addActionListener(e -> updateAndDisplayVerseData());
         moduleComboBox.addActionListener(e -> updateAndDisplayVerseData());
+        useModuleAbbrsCheckbox.addActionListener(e -> {
+            guiConfig.useModuleAbbreviations = useModuleAbbrsCheckbox.isSelected();
+            guiConfigManager.setConfig(guiConfig);
+            guiConfigManager.saveConfig();
+            updateAndDisplayVerseData();
+        });
         rawJsonCheckbox.addActionListener(e -> {
             guiConfig.showRawJson = rawJsonCheckbox.isSelected();
             guiConfigManager.saveConfig();
@@ -358,19 +370,23 @@ public class Gui extends JFrame {
         VerseFetcher fetcher = null;
         try {
             BookMapper defaultBookMapper;
-            if (customMappingPath != null && Files.exists(customMappingPath)) {
-                defaultBookMapper = new BookMapper(Files.newInputStream(customMappingPath));
-            } else {
-                defaultBookMapper = BookMappingManager.getBookMapper(configManager);
-            }
-            
             BookMapper moduleBookMapper;
-            try {
-                AbbreviationManager abbrManager = new AbbreviationManager(configManager, 0);
-                Path abbrFile = abbrManager.ensureAbbreviationFile(selectedModule.getName(), selectedModule.getPath());
-                moduleBookMapper = new BookMapper(abbrManager.loadAbbreviations(abbrFile));
-            } catch (Exception e) {
-                moduleBookMapper = defaultBookMapper;
+            
+            // Conditionally select the default mapping based on the checkbox
+            AbbreviationManager abbrManager = new AbbreviationManager(configManager, 0);
+            Path abbrFile = abbrManager.ensureAbbreviationFile(selectedModule.getName(), selectedModule.getPath());
+            moduleBookMapper = new BookMapper(abbrManager.loadAbbreviations(abbrFile));
+
+            if (guiConfig.useModuleAbbreviations) {
+                // If checkbox is selected, use the module's own abbreviations as the default
+                defaultBookMapper = moduleBookMapper;
+            } else {
+                // Otherwise, use the standard mapping file logic
+                if (customMappingPath != null && Files.exists(customMappingPath)) {
+                    defaultBookMapper = new BookMapper(Files.newInputStream(customMappingPath));
+                } else {
+                    defaultBookMapper = BookMappingManager.getBookMapper(configManager);
+                }
             }
 
             VerseIndexManager indexManager = new VerseIndexManager(configManager, 0);
