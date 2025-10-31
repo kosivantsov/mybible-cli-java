@@ -210,10 +210,7 @@ task jpackageWindowsConsole(type: org.panteleyev.jpackage.JPackageTask) {
         winShortcut = true               // Create desktop shortcut
         winPerUserInstall = false        // System-wide installation
         winMenuGroup = 'MyBible CLI'     // Start menu folder name
-        
-        // Add to PATH - this will prompt user during installation
-        winUpdateInstallDir = true       // Update install directory in registry
-        
+
         javaOptions = [
             '-Dfile.encoding=UTF-8',
             '-Dsun.stdout.encoding=UTF-8',
