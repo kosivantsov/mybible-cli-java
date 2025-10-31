@@ -102,3 +102,83 @@ jpackage {
         icon = file('src/main/resources/icons/mybible-cli.png')
     }
 }
+
+// Additional Windows console version with PowerShell wrapper
+task jpackageWindowsConsole(type: org.panteleyev.jpackage.JPackageTask) {
+    dependsOn 'shadowJar'
+
+    appName = 'mybible-cli-console'
+    appVersion = '1.0'
+    vendor = 'Kos Ivantsov'
+    copyright = 'Copyright © 2025 Kos Ivantsov'
+    appDescription = 'MyBible CLI - Windows console version for biblical text processing'
+
+    input = file("${buildDir}/libs")
+    mainJar = 'mybible-cli.jar'
+    mainClass = application.mainClass.get()
+
+    destination = layout.buildDirectory.dir('jpackage-windows-console')
+
+    javaOptions = [
+        '-Dfile.encoding=UTF-8',
+        '-Dsun.stdout.encoding=UTF-8'
+    ]
+
+    windows {
+        type = 'EXE'
+        icon = file('src/main/resources/icons/mybible-cli.ico')
+        winConsole = true  // Enable console for CLI usage
+        javaOptions = [
+            '-Dfile.encoding=UTF-8',
+            '-Dsun.stdout.encoding=UTF-8',
+            '-Dsun.stderr.encoding=UTF-8',
+            '-Dconsole.encoding=UTF-8'
+        ]
+    }
+}
+
+// Create PowerShell wrapper for the Windows console version
+task createWindowsPowerShellWrapper {
+    dependsOn 'jpackageWindowsConsole'
+    doLast {
+        def jpackageDir = layout.buildDirectory.dir('jpackage-windows-console').get().asFile
+        def psWrapper = new File(jpackageDir, 'mybible-cli.ps1')
+        
+        psWrapper.text = '''# PowerShell wrapper for proper Unicode handling
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+$env:JAVA_TOOL_OPTIONS = "-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8"
+
+$exePath = Join-Path $PSScriptRoot "mybible-cli-console.exe"
+& $exePath @args
+'''
+        println "Created PowerShell wrapper: ${psWrapper.absolutePath}"
+        
+        // Also create a batch file that calls the PowerShell script
+        def batchWrapper = new File(jpackageDir, 'mybible-cli-unicode.bat')
+        batchWrapper.text = '''@echo off
+powershell -ExecutionPolicy Bypass -File "%~dp0mybible-cli.ps1" %*
+'''
+        println "Created batch wrapper: ${batchWrapper.absolutePath}"
+        
+        // Create a simple UTF-8 batch wrapper as alternative
+        def simpleWrapper = new File(jpackageDir, 'mybible-cli-utf8.bat')
+        simpleWrapper.text = '''@echo off
+chcp 65001 >nul 2>&1
+set JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8
+"%~dp0mybible-cli-console.exe" %*
+'''
+        println "Created simple UTF-8 batch wrapper: ${simpleWrapper.absolutePath}"
+        
+        println ""
+        println "Windows Console version created with multiple wrappers:"
+        println "  - mybible-cli-console.exe (direct executable)"
+        println "  - mybible-cli-unicode.bat (recommended for scripts)"
+        println "  - mybible-cli.ps1 (PowerShell wrapper)"
+        println "  - mybible-cli-utf8.bat (simple batch wrapper)"
+    }
+}
+
+// Make the wrapper creation automatic
+jpackageWindowsConsole.finalizedBy createWindowsPowerShellWrapper
+

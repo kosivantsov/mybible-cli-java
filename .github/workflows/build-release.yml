@@ -31,33 +31,41 @@ jobs:
         if: runner.os != 'Windows'
         run: chmod +x ./gradlew
 
-      - name: Build application with Gradle
+      - name: Build application with Gradle (macOS/Linux)
+        if: runner.os != 'Windows'
         run: ./gradlew jpackage --no-daemon
+
+      - name: Build Windows GUI version
+        if: runner.os == 'Windows'
+        run: ./gradlew jpackage --no-daemon
+
+      - name: Build Windows Console version
+        if: runner.os == 'Windows'
+        run: ./gradlew jpackageWindowsConsole --no-daemon
         
       - name: List Build Outputs
-        run: ls -R build/jpackage
+        run: ls -R build/jpackage*
 
-      # **MODIFICATION FOR MACOS**
-      - name: Create macOS Release ZIP
-        if: runner.os == 'macOS'
-        run: |
-          cd build/jpackage
-          zip -r ../mybible-cli-macOS.zip ./* -x "*.DS_Store"
-          cd ../..
-      
       - name: Upload macOS Artifact
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
           name: mybible-cli-macOS
-          path: build/mybible-cli-macOS.zip
+          path: build/jpackage
 
-      - name: Upload Windows Artifact (folder)
+      - name: Upload Windows GUI Artifact
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: mybible-cli-Windows
+          name: mybible-cli-Windows-GUI
           path: build/jpackage/*
+
+      - name: Upload Windows Console Artifact
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mybible-cli-Windows-Console
+          path: build/jpackage-windows-console/*
 
       - name: Upload Linux Artifact (.deb)
         if: runner.os == 'Linux'
