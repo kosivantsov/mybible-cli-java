@@ -11,6 +11,7 @@ import org.truetranslation.mybible.core.model.Verse;
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.text.BadLocationException;
+import javax.swing.text.MutableAttributeSet;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
@@ -86,6 +87,15 @@ public class Gui extends JFrame {
         if (initialModule != null || initialReference != null) {
             SwingUtilities.invokeLater(this::updateAndDisplayVerseData);
         }
+    }
+
+    public void setTextSpacing(JTextPane textPane, float lineSpacing, float spaceAbove, float spaceBelow) {
+        StyledDocument doc = textPane.getStyledDocument();
+        MutableAttributeSet attrs = new SimpleAttributeSet();
+        StyleConstants.setLineSpacing(attrs, lineSpacing);
+        StyleConstants.setSpaceAbove(attrs, spaceAbove);
+        StyleConstants.setSpaceBelow(attrs, spaceBelow);
+        doc.setParagraphAttributes(0, doc.getLength(), attrs, false);
     }
 
     private void loadAppIcon() {
@@ -356,6 +366,8 @@ public class Gui extends JFrame {
     private void updateAndDisplayVerseData() {
         textDisplayPane.setBackground(guiConfig.textAreaBackground != null ? guiConfig.textAreaBackground : UIManager.getColor("TextPane.background"));
         StyledDocument doc = textDisplayPane.getStyledDocument();
+        // line spacing, space above, space below
+        setTextSpacing(textDisplayPane, 0.2f, 2.0f, 2.0f);
 
         ModuleScanner.Module selectedModule = (ModuleScanner.Module) moduleComboBox.getSelectedItem();
         String reference = referenceInputField.getText();
