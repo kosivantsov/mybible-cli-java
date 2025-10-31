@@ -49,24 +49,24 @@ shadowJar {
 
 jpackage {
     dependsOn 'shadowJar'
-    
+
     appName = 'mybible-cli'
     appVersion = '1.0'
     vendor = 'Kos Ivantsov'
     copyright = 'Copyright © 2025 Kos Ivantsov'
     appDescription = 'MyBible CLI - A command-line and GUI tool for biblical text processing'
-    
+
     input = file("${buildDir}/libs")
     mainJar = 'mybible-cli.jar'
     mainClass = application.mainClass.get()
-    
+
     destination = layout.buildDirectory.dir('jpackage')
-    
+
     javaOptions = [
         '-Dfile.encoding=UTF-8',
         '-Dsun.stdout.encoding=UTF-8'
     ]
-    
+
     mac {
         macPackageIdentifier = 'org.truetranslation.mybible-cli'
         macPackageName = 'mybible-cli'
