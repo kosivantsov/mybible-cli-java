@@ -40,7 +40,9 @@ public class OutputFormatter {
         temp = temp.replaceAll("(?i)<[SGH]>\\s*[0-9]+\\s*</[SGH]>", " ");
         temp = temp.replaceAll("(?i)<m>.*?</m>", " ");
         temp = temp.replaceAll("(?i)<n>.*?</n>", " ");
+        temp = temp.replaceAll("(?i)<h>.*?</h>", " ");
         temp = temp.replaceAll("<[^>]+>", " ");
+        temp = temp.replace("<br/>", " ");
         return temp.trim().replaceAll("\\s+", " ");
     }
 
@@ -50,6 +52,8 @@ public class OutputFormatter {
         temp = temp.replaceAll("(?i)<[SGH]>\\s*[0-9]+\\s*</[SGH]>", " ");
         temp = temp.replaceAll("(?i)<m>.*?</m>", " ");
         temp = temp.replaceAll("(?i)<n>.*?</n>", " ");
+        temp = temp.replaceAll("(?i)<h>.*?</h>", " ");
+        temp = temp.replace("<br/>", " ");
         if (temp.trim().startsWith("<pb/>")) {
             temp = temp.replaceFirst("<pb/>", "").trim();
         }
@@ -62,7 +66,7 @@ public class OutputFormatter {
     
     private String createAnsiText(String text, boolean includeStrongs, boolean multiline) {
         String tempText = text;
-        tempText = tempText.replaceAll("(?i)<f>.*?</f>|</?t>|~|@|@[^ ]+? ", " ");
+        tempText = tempText.replaceAll("(?i)<f>.*?</f>|(?i)<h>.*?</h>|<br/>|</?t>|~|@|@[^ ]+? ", " ");
         if (multiline) {
             if (tempText.trim().startsWith("<pb/>")) {
                 tempText = tempText.replaceFirst("<pb/>", " ");

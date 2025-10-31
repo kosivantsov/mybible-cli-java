@@ -90,7 +90,9 @@ public class GuiTextFormatter {
             .replaceAll("(?i)<f>.*?</f>|</?t>|~|@|@[^ ]+? ", " ")
             .replaceAll("(?i)<[SGH]>\\s*\\d+\\s*</[SGH]>", " ")
             .replaceAll("(?i)<m>.*?</m>", " ")
-            .replaceAll("(?i)<n>.*?</n>", " ");
+            .replaceAll("(?i)<n>.*?</n>", " ")
+            .replaceAll("(?i)<h>.*?</h>", " ")
+            .replaceAll("<br/>", " ");
         
         if (multiline) {
             if (temp.trim().startsWith("<pb/>")) {
@@ -113,7 +115,7 @@ public class GuiTextFormatter {
     private void appendStyledText(StyledDocument doc, String rawText, boolean withStrongs, boolean multiline) throws BadLocationException {
         String tempText = rawText
                 .replaceAll("\\[\\d+\\]", "")
-                .replaceAll("(?i)<f>.*?</f>|</?t>|~|@|@[^ ]+? ", " ");
+                .replaceAll("(?i)<f>.*?</f>|(?i)<h>.*?</h>|<br/>|</?t>|~|@|@[^ ]+? ", " ");
 
         if (multiline) {
             if (tempText.trim().startsWith("<pb/>")) {
