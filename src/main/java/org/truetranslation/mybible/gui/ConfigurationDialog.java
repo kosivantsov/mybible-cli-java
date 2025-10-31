@@ -87,18 +87,15 @@ public class ConfigurationDialog extends JDialog {
             config.lookAndFeelClassName = ((ThemeInfo) lafComboBox.getSelectedItem()).className;
             config.textAreaBackground = chosenBackgroundColor;
             ensureAllStylesExist();
-            
             // Set the new config in the manager and then save it
             configManager.setConfig(this.config);
             configManager.saveConfig();
-
             saved = true;
             applyLookAndFeel();
             dispose();
         });
 
         initEscapeToClose();
-
         pack();
         setLocationRelativeTo(owner);
     }
@@ -115,47 +112,39 @@ public class ConfigurationDialog extends JDialog {
         if (response == JOptionPane.YES_OPTION) {
             // Create a new default config object
             GuiConfig defaultConfig = new GuiConfig();
-            
             // Set the default config in the manager and save it immediately
             configManager.setConfig(defaultConfig);
             configManager.saveConfig();
-            
             // Update the dialog's internal config to match the newly loaded one
             this.config = configManager.getConfig();
-            
             // Update all UI elements from the new default config
             updateUiFromConfig();
-            
             // Immediately apply the visual changes to the main application window
             applyLookAndFeel();
         }
     }
-    
+
     private void updateUiFromConfig() {
         // Update format string
         formatStringField.setText(this.config.formatString);
-        
         // Update background color
         chosenBackgroundColor = this.config.textAreaBackground;
         colorButton.setBackground(chosenBackgroundColor != null ? chosenBackgroundColor : UIManager.getColor("Button.background"));
-
         // Update Look and Feel dropdown
         THEMES.stream()
               .filter(t -> t.className.equals(this.config.lookAndFeelClassName))
               .findFirst()
               .ifPresent(lafComboBox::setSelectedItem);
-              
         // Re-create the main panel to update all style rows
         getContentPane().remove(0);
         JPanel newMainPanel = createMainPanel();
         add(newMainPanel, BorderLayout.CENTER);
-        
         // Refresh the layout
         revalidate();
         repaint();
         pack();
     }
-    
+
     private JPanel createMainPanel() {
         JPanel mainPanel = new JPanel(new GridBagLayout());
         mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -178,7 +167,7 @@ public class ConfigurationDialog extends JDialog {
         addStyleRow(mainPanel, 9, bundle.getString("label.wordsOfJesus"), "wordsOfJesus");
         addStyleRow(mainPanel, 10, bundle.getString("label.defaultText"), "defaultText");
         addStyleRow(mainPanel, 11, bundle.getString("label.infoText"), "infoText");
-        
+
         gbc.gridy = 12; gbc.gridx = 0; gbc.gridwidth = 1; gbc.weightx = 0;
         mainPanel.add(new JLabel(bundle.getString("label.backgroundColor")), gbc);
         gbc.gridx = 1; gbc.gridwidth = 1;
@@ -208,7 +197,7 @@ public class ConfigurationDialog extends JDialog {
         
         return mainPanel;
     }
-    
+
     @Override
     public void dispose() {
         if (!saved) {
@@ -216,7 +205,7 @@ public class ConfigurationDialog extends JDialog {
         }
         super.dispose();
     }
-    
+
     private void initEscapeToClose() {
         JRootPane rootPane = this.getRootPane();
         InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
@@ -268,7 +257,7 @@ public class ConfigurationDialog extends JDialog {
         });
         panel.add(configureButton, gbc);
     }
-    
+
     private void applyLookAndFeel() {
         try {
             UIManager.setLookAndFeel(config.lookAndFeelClassName);
