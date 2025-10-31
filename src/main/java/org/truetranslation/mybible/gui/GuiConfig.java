@@ -1,6 +1,6 @@
 package org.truetranslation.mybible.gui;
 
-import com.formdev.flatlaf.intellijthemes.*;;
+import com.formdev.flatlaf.intellijthemes.*;
 import java.awt.Color;
 import java.awt.Font;
 import java.util.HashMap;
