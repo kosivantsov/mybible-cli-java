@@ -1,21 +1,11 @@
 package org.truetranslation.mybible.gui;
 
 import com.formdev.flatlaf.FlatLightLaf;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.truetranslation.mybible.core.*;
-import org.truetranslation.mybible.core.model.Book;
-import org.truetranslation.mybible.core.model.Reference;
-import org.truetranslation.mybible.core.model.Verse;
+import com.google.gson.JsonSyntaxException;
 
-import javax.swing.*;
-import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.MutableAttributeSet;
-import javax.swing.text.SimpleAttributeSet;
-import javax.swing.text.StyleConstants;
-import javax.swing.text.StyledDocument;
-import javax.swing.text.rtf.RTFEditorKit;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
@@ -41,12 +31,27 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.Vector;
+import javax.swing.*;
+import javax.swing.JOptionPane;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.MutableAttributeSet;
+import javax.swing.text.SimpleAttributeSet;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
+import javax.swing.text.rtf.RTFEditorKit;
+
+import org.truetranslation.mybible.core.*;
+import org.truetranslation.mybible.core.model.Book;
+import org.truetranslation.mybible.core.model.Reference;
+import org.truetranslation.mybible.core.model.Verse;
 
 public class Gui extends JFrame {
 
     private JTextPane textDisplayPane;
     private JTextField referenceInputField;
     private JComboBox<ModuleScanner.Module> moduleComboBox;
+    private JTextField modulePathField;
     private JCheckBox rawJsonCheckbox;
     private JTextField mappingFileField;
     private JCheckBox useModuleAbbrsCheckbox;
@@ -158,7 +163,16 @@ public class Gui extends JFrame {
         gbc.gridx = 2;
         JButton infoButton = new JButton(bundle.getString("button.info"));
         inputPanel.add(infoButton, gbc);
-        gbc.gridy =2; gbc.gridx = 2;
+        
+        gbc.gridy = 2; gbc.gridx = 0;
+        inputPanel.add(new JLabel(bundle.getString("label.modulePath")), gbc);
+
+        gbc.gridx = 1;
+        modulePathField = new JTextField(configManager.getModulesPath());
+        modulePathField.setEditable(false);
+        inputPanel.add(modulePathField, gbc);
+        
+        gbc.gridx = 2;
         JButton setModulePathButton = new JButton(bundle.getString("button.modulePathSet"));
         inputPanel.add(setModulePathButton, gbc);
 
@@ -174,8 +188,8 @@ public class Gui extends JFrame {
         mappingFileField.setEditable(false);
         inputPanel.add(mappingFileField, gbc);
         gbc.gridx = 2; gbc.weightx = 0;
-        JButton browseButton = new JButton(bundle.getString("button.browse"));
-        inputPanel.add(browseButton, gbc);
+        JButton mapBrowseButton = new JButton(bundle.getString("button.browse"));
+        inputPanel.add(mapBrowseButton, gbc);
 
         gbc.gridy = 5; gbc.gridx = 1; gbc.gridwidth = 2;
         useModuleAbbrsCheckbox = new JCheckBox(bundle.getString("label.useModuleAbbrs"));
@@ -214,26 +228,43 @@ public class Gui extends JFrame {
         configureButton.addActionListener(e -> openConfigurationDialog());
         copyButton.addActionListener(e -> copyRichTextToClipboard());
         quitButton.addActionListener(e -> quitApplication());
-        browseButton.addActionListener(e -> {
+        mapBrowseButton.addActionListener(e -> {
             JFileChooser chooser = new JFileChooser(configManager.getDefaultConfigDir().toFile());
             chooser.setFileFilter(new FileNameExtensionFilter("JSON Mapping Files", "json"));
             int result = chooser.showOpenDialog(this);
             if (result == JFileChooser.APPROVE_OPTION) {
-                customMappingPath = chooser.getSelectedFile().toPath();
-                mappingFileField.setText(customMappingPath.getFileName().toString());
-                updateAndDisplayVerseData();
+                Path selectedFile = chooser.getSelectedFile().toPath();
+                try {
+                    // Validate the file first
+                    if (BookMapper.isValidMappingFile(Files.newInputStream(selectedFile))) {
+                        // File is valid
+                        customMappingPath = selectedFile;
+                        mappingFileField.setText(customMappingPath.getFileName().toString());
+                        updateAndDisplayVerseData();
+                    } else {
+                        String errorMessage = bundle.getString("error.gui.invalidMappingFile");
+                        String dialogTitle = bundle.getString("error.gui.invalidMappingTitle");
+                        JOptionPane.showMessageDialog(this, errorMessage, dialogTitle, JOptionPane.ERROR_MESSAGE);
+                        // revert to default
+                        customMappingPath = null;
+                        mappingFileField.setText("default_mapping.json");
+                        updateAndDisplayVerseData();
+                    }
+                } catch (IOException ex) {
+                    String errorMessage = MessageFormat.format(bundle.getString("error.gui.fileReadError"), ex.getMessage());
+                    String dialogTitle = bundle.getString("error.gui.fileErrorTitle");
+                    JOptionPane.showMessageDialog(this, errorMessage, dialogTitle, JOptionPane.ERROR_MESSAGE);
+                }
             }
         });
     }
 
     private void selectModulePath() {
         JFileChooser chooser = new JFileChooser();
-        
         // Set to directory selection only
         chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         chooser.setDialogTitle(bundle.getString("dialog.title.selectModulePath"));
         chooser.setAcceptAllFileFilterUsed(false);
-        
         // Start from current modules path if it exists
         String currentPath = configManager.getModulesPath();
         if (currentPath != null && !currentPath.isEmpty()) {
@@ -242,16 +273,12 @@ public class Gui extends JFrame {
                 chooser.setCurrentDirectory(currentDir.toFile());
             }
         }
-        
         int result = chooser.showDialog(this, bundle.getString("button.modulePathSelect"));
         if (result == JFileChooser.APPROVE_OPTION) {
             Path selectedPath = chooser.getSelectedFile().toPath();
             configManager.setModulesPath(selectedPath.toString());
-            
-            // Reload modules from new path
+            modulePathField.setText(configManager.getModulesPath());
             loadModules();
-            
-            // Show confirmation
             JOptionPane.showMessageDialog(this, 
                 MessageFormat.format(bundle.getString("dialog.message.modulePathSet"), selectedPath.toString()), 
                 bundle.getString("dialog.title.success"), 
