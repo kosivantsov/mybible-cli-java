@@ -42,26 +42,26 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           cd build/jpackage
-          zip -r ../JsonConverter-macOS.zip ./* -x "*.DS_Store"
+          zip -r ../mybible-cli-macOS.zip ./* -x "*.DS_Store"
           cd ../..
       
       - name: Upload macOS Artifact
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
-          name: JsonConverter-macOS
-          path: build/JsonConverter-macOS.zip
+          name: mybible-cli-macOS
+          path: build/mybible-cli-macOS.zip
 
       - name: Upload Windows Artifact (folder)
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: JsonConverter-Windows
-          path: build/jpackage/The Word121 JSON Converter/
+          name: mybible-cli-Windows
+          path: build/jpackage/mybible-cli/
 
       - name: Upload Linux Artifact (.deb)
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: JsonConverter-Linux-DEB
+          name: mybible-cli-Linux-DEB
           path: build/jpackage/*.deb
