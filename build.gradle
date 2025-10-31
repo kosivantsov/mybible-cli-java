@@ -102,14 +102,50 @@ jpackage {
     }
 }
 
-// Create wrapper files in the libs directory so they get packaged
-task createWindowsWrapperFiles {
+/// Portable Windows console version
+task jpackageWindowsConsole(type: org.panteleyev.jpackage.JPackageTask) {
     dependsOn 'shadowJar'
+
+    appName = 'mybible-cli-console'
+    appVersion = '1.0'
+    vendor = 'Kos Ivantsov'
+    copyright = 'Copyright © 2025 Kos Ivantsov'
+    appDescription = 'MyBible CLI - Portable Windows console version'
+
+    input = file("${buildDir}/libs")
+    mainJar = 'mybible-cli.jar'
+    mainClass = application.mainClass.get()
+
+    destination = layout.buildDirectory.dir('jpackage-windows-console')
+
+    javaOptions = [
+        '-Dfile.encoding=UTF-8',
+        '-Dsun.stdout.encoding=UTF-8'
+    ]
+
+    windows {
+        type = 'APP_IMAGE'  // Creates a portable app directory
+        icon = file('src/main/resources/icons/mybible-cli.ico')
+        winConsole = true
+        
+        javaOptions = [
+            '-Dfile.encoding=UTF-8',
+            '-Dsun.stdout.encoding=UTF-8',
+            '-Dsun.stderr.encoding=UTF-8',
+            '-Dconsole.encoding=UTF-8'
+        ]
+    }
+}
+
+// Create wrapper files next to the .exe after jpackage runs
+task createWindowsWrapperFiles {
+    dependsOn 'jpackageWindowsConsole'
     doLast {
-        def libsDir = file("${buildDir}/libs")
+        def appDir = layout.buildDirectory.dir('jpackage-windows-console').get().asFile
+        def exeDir = new File(appDir, 'mybible-cli-console')  // The actual app directory
         
         // PowerShell wrapper
-        def psWrapper = new File(libsDir, 'mybible-cli.ps1')
+        def psWrapper = new File(exeDir, 'mybible-cli.ps1')
         psWrapper.text = '''# PowerShell wrapper for proper Unicode handling
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::InputEncoding = [System.Text.Encoding]::UTF8
@@ -120,25 +156,26 @@ $exePath = Join-Path $PSScriptRoot "mybible-cli-console.exe"
 '''
         
         // Batch wrapper using PowerShell
-        def batchWrapper = new File(libsDir, 'mybible-cli-unicode.bat')
+        def batchWrapper = new File(exeDir, 'mybible-cli-unicode.bat')
         batchWrapper.text = '''@echo off
 powershell -ExecutionPolicy Bypass -File "%~dp0mybible-cli.ps1" %*
 '''
         
         // Simple UTF-8 batch wrapper
-        def simpleWrapper = new File(libsDir, 'mybible-cli-utf8.bat')
+        def simpleWrapper = new File(exeDir, 'mybible-cli-utf8.bat')
         simpleWrapper.text = '''@echo off
 chcp 65001 >nul 2>&1
 set JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8
 "%~dp0mybible-cli-console.exe" %*
 '''
         
-        // Create README for users
-        def readme = new File(libsDir, 'README-Console.txt')
-        readme.text = '''MyBible CLI - Console Version
-=============================
+        // Create README for portable usage
+        def readme = new File(exeDir, 'README-Console.txt')
+        readme.text = '''MyBible CLI - Portable Console Version
+=======================================
 
-This is the console version of MyBible CLI optimized for command-line usage.
+This is a portable version that doesn't require installation.
+Simply extract/copy this folder anywhere and run the wrappers.
 
 Usage:
 ------
@@ -162,22 +199,18 @@ mybible-cli-unicode.bat list
 mybible-cli-unicode.bat get -r "John 3:16"
 mybible-cli-unicode.bat help format
 
-PATH Integration:
------------------
-If you chose to add to PATH during installation, you can use:
+Portable Usage:
+---------------
+You can:
+1. Copy this entire folder anywhere on your system
+2. Run from any location without installation
+3. Add this folder to PATH for system-wide access
+4. Create shortcuts to the wrapper files
 
-mybible-cli-unicode get -m "KJV+" -r "John 3:16"
-
-from any directory.
-
-To add to PATH:
-1. Open System Properties → Advanced → Environment Variables
-2. Under System Variables, find "Path" and click Edit
-3. Click New and add: C:\\Program Files\\mybible-cli-console
-4. Click OK to save
+No administrator rights required!
 '''
         
-        println "Created wrapper files in libs directory: ${libsDir.absolutePath}"
+        println "Created wrapper files next to executable in: ${exeDir.absolutePath}"
         println "Files created:"
         println "  - mybible-cli.ps1"
         println "  - mybible-cli-unicode.bat"
@@ -186,60 +219,5 @@ To add to PATH:
     }
 }
 
-// Modified Windows console version
-task jpackageWindowsConsole(type: org.panteleyev.jpackage.JPackageTask) {
-    dependsOn 'shadowJar', 'createWindowsWrapperFiles'
-
-    appName = 'mybible-cli-console'
-    appVersion = '1.0'
-    vendor = 'Kos Ivantsov'
-    copyright = 'Copyright © 2025 Kos Ivantsov'
-    appDescription = 'MyBible CLI - Windows console version for biblical text processing'
-
-    input = file("${buildDir}/libs")  // This will include all files in libs directory
-    mainJar = 'mybible-cli.jar'
-    mainClass = application.mainClass.get()
-
-    destination = layout.buildDirectory.dir('jpackage-windows-console')
-
-    javaOptions = [
-        '-Dfile.encoding=UTF-8',
-        '-Dsun.stdout.encoding=UTF-8'
-    ]
-
-    windows {
-        type = 'MSI'
-        icon = file('src/main/resources/icons/mybible-cli.ico')
-        winConsole = true
-        
-        // Installer settings
-        winMenu = true
-        winDirChooser = true
-        winShortcut = true
-        winPerUserInstall = false
-        winMenuGroup = 'MyBible CLI'
-        
-        javaOptions = [
-            '-Dfile.encoding=UTF-8',
-            '-Dsun.stdout.encoding=UTF-8',
-            '-Dsun.stderr.encoding=UTF-8',
-            '-Dconsole.encoding=UTF-8'
-        ]
-    }
-}
-
-// Clean up wrapper files after build (optional)
-task cleanupWrapperFiles {
-    dependsOn 'jpackageWindowsConsole'
-    doLast {
-        def libsDir = file("${buildDir}/libs")
-        new File(libsDir, 'mybible-cli.ps1').delete()
-        new File(libsDir, 'mybible-cli-unicode.bat').delete()
-        new File(libsDir, 'mybible-cli-utf8.bat').delete()
-        new File(libsDir, 'README-Console.txt').delete()
-        println "Cleaned up wrapper files from libs directory"
-    }
-}
-
-// Optional: automatically clean up
-jpackageWindowsConsole.finalizedBy cleanupWrapperFiles
+// Make wrapper creation automatic
+jpackageWindowsConsole.finalizedBy createWindowsWrapperFiles
