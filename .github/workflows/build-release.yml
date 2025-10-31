@@ -57,7 +57,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mybible-cli-Windows
-          path: build/jpackage/mybible-cli/
+          path: build/jpackage/*
 
       - name: Upload Linux Artifact (.deb)
         if: runner.os == 'Linux'
