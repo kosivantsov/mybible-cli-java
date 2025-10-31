@@ -1,0 +1,81 @@
+name: Build Cross-Platform Releases
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install Linux Dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y build-essential fakeroot
+
+      - name: Make gradlew executable
+        if: runner.os != 'Windows'
+        run: chmod +x ./gradlew
+
+      - name: Build application with Gradle
+        run: ./gradlew jpackage --no-daemon
+        
+      - name: Post-process Windows Config
+        if: runner.os == 'Windows'
+        run: |
+          $appDir = "build/jpackage/mybible-cli/app"
+          $configFile = Get-ChildItem -Path $appDir -Filter "*.cfg" | Select-Object -First 1
+          if ($configFile) {
+            Write-Host "Processing config file: $($configFile.FullName)"
+            (Get-Content $configFile.FullName) | Where-Object { $_ -notmatch "-Dapple" -and $_ -notmatch "-Xdock" } | Set-Content $configFile.FullName
+            Write-Host "Successfully removed macOS-specific options."
+          } else {
+            Write-Host "Warning: No .cfg file found in $appDir. Skipping post-processing."
+          }
+        shell: powershell
+        
+      - name: List Build Outputs
+        run: ls -R build/jpackage
+
+      # **MODIFICATION FOR MACOS**
+      - name: Create macOS Release ZIP
+        if: runner.os == 'macOS'
+        run: |
+          cd build/jpackage
+          zip -r ../JsonConverter-macOS.zip ./* -x "*.DS_Store"
+          cd ../..
+      
+      - name: Upload macOS Artifact
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: JsonConverter-macOS
+          path: build/JsonConverter-macOS.zip
+
+      - name: Upload Windows Artifact (folder)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: JsonConverter-Windows
+          path: build/jpackage/The Word121 JSON Converter/
+
+      - name: Upload Linux Artifact (.deb)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: JsonConverter-Linux-DEB
+          path: build/jpackage/*.deb
