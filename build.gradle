@@ -82,7 +82,7 @@ jpackage {
             '-Xdock:name=mybible-cli'
         ]
     }
-    
+
     windows {
         winMenu = true
         winDirChooser = true
@@ -90,8 +90,9 @@ jpackage {
         winPerUserInstall = false
         type = 'EXE'
         icon = file('src/main/resources/icons/mybible-cli.ico')
+        winConsole = true
     }
-    
+
     linux {
         linuxPackageName = 'mybible-cli'
         linuxDebMaintainer = 'kos@truetranslation.org'
