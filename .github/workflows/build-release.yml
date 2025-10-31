@@ -34,20 +34,6 @@ jobs:
       - name: Build application with Gradle
         run: ./gradlew jpackage --no-daemon
         
-      - name: Post-process Windows Config
-        if: runner.os == 'Windows'
-        run: |
-          $appDir = "build/jpackage/mybible-cli/app"
-          $configFile = Get-ChildItem -Path $appDir -Filter "*.cfg" | Select-Object -First 1
-          if ($configFile) {
-            Write-Host "Processing config file: $($configFile.FullName)"
-            (Get-Content $configFile.FullName) | Where-Object { $_ -notmatch "-Dapple" -and $_ -notmatch "-Xdock" } | Set-Content $configFile.FullName
-            Write-Host "Successfully removed macOS-specific options."
-          } else {
-            Write-Host "Warning: No .cfg file found in $appDir. Skipping post-processing."
-          }
-        shell: powershell
-        
       - name: List Build Outputs
         run: ls -R build/jpackage
 
