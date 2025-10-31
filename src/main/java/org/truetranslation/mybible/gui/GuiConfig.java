@@ -17,7 +17,7 @@ public class GuiConfig {
     public GuiConfig() {
         this.lookAndFeelClassName = FlatArcIJTheme.class.getName();
         styles.put("infoText", new TextStyle("Monospaced", Font.PLAIN, 12, null, null, false, false));
-        styles.put("defaultText", new TextStyle("Serif", Font.PLAIN, 10, null, null, false, false));
+        styles.put("defaultText", new TextStyle("Serif", Font.PLAIN, 10, Color.GRAY, null, false, false));
         styles.put("bookName", new TextStyle("Serif", Font.PLAIN, 10, Color.GRAY, null, false, false));
         styles.put("chapter", new TextStyle("Serif", Font.PLAIN, 10, Color.GRAY, null, false, false));
         styles.put("verse", new TextStyle("Serif", Font.PLAIN, 10, Color.GRAY, null, false, false));
