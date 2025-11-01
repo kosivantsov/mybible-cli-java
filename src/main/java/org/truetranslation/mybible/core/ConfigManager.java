@@ -17,7 +17,7 @@ import java.util.ResourceBundle;
 public class ConfigManager {
     private final Path configFilePath;
     private Map<String, Object> config;
-    private static final String DEFAULT_FORMAT = "%a %c:%v %t";
+    private static final String DEFAULT_FORMAT = "%A %c:%v %t";
     private static final ResourceBundle bundle = ResourceBundle.getBundle("i18n.messages");
 
     public ConfigManager() {
