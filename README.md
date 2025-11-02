@@ -16,6 +16,10 @@ The primary goal of MyBible-CLI is to provide a fast and comprehensive command-l
 *   **Advanced Output Formatting**: Use a flexible format string to control the exact output for verses, book names, and references.
 *   **Customizable Book Name Mappings**: Use the default book name abbreviations or create your own custom mapping files for different languages.
 *   **Easy Configuration Management**: A simple `open` command allows you to instantly open the configuration and module folders in your system's file explorer.
+<p>
+  <img width="49%" alt="CLI with Strong's numbers and morphology data" src="https://github.com/user-attachments/assets/c39cda4f-2287-479c-b694-7a3c4161a292" />
+  <img width="49%" alt="CLI with the help message" src="https://github.com/user-attachments/assets/9a7a5a4e-2dc6-4a2a-ab17-e84f5f3cf5db" />
+</p>
 
 ### Graphical User Interface (GUI)
 
@@ -27,6 +31,14 @@ The primary goal of MyBible-CLI is to provide a fast and comprehensive command-l
   <img src="screenshots/mac_Light.png" width="49%">
   <img src="screenshots/mac_Dark.png" width="49%">
 </p>
+
+## Installation
+
+Download the latest pre-built application for your operating system from the [Releases page](https://github.com/kosivantsov/mybible-cli-java/releases).  
+Released applications include the required Java runtime and do not require you to have Java installed.
+Versions built for macOS and Linux can be used in CLI and GUI mode. For Windows, you can download a version that supports only GUI, or a version that supports both modes, but GUI is run with a terminal window opening at the same time.
+
+Alternatively, you may [build](#building-the-application) a cross-platform JAR or a packaged application for your operating system.
 
 ## Usage
 
@@ -180,13 +192,24 @@ Both modes also support outputting the requested reference text as raw JSON data
 This project is built using Gradle.
 
 1.  **Prerequisites**: You will need a Java Development Kit (JDK), version 17 or higher.
-2.  **Build Command**: Navigate to the project root and run the following command:
+2.  **Build Command for the Cross-Platform JAR**: Navigate to the project root and run the following command:
 
     ```bash
     ./gradlew clean shadowJar
     ```
-3.  **Output**: The command will produce a single, executable JAR file at `build/libs/mybible-cli.jar`.
 
+    **Output**: The command will produce a single, executable JAR file at `build/libs/mybible-cli.jar`.
+   
+4.  **Build Command for the OS-Specific Application**: Navigate to the project root and run the following command:
+   
+    ```bash
+    ./gradlew clean jpackage
+    ```
+
+    **Output**: The command will produce your compiled application at `build/jpackage/<packaged_app>`.
+
+    To package the app on Windows, you need to have [WiX Toolset](https://github.com/wixtoolset) installed.
+   
 ## Credits and Thanks
 
 This tool would not be possible without the incredible work done by the creators of the [MyBible](https://mybible.zone) project.  
