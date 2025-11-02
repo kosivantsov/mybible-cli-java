@@ -31,6 +31,7 @@ The primary goal of MyBible-CLI is to provide a fast and comprehensive command-l
 ## Usage
 
 To use this application, you need to have at least one unzipped MyBible module stored in a folder on your computer. You can [download modules](#downloadmodules-bookmark) manually, or use a [command line module manager](https://github.com/kosivantsov/mybible-get).
+
 You can interact with the application via the executable JAR (`java -jar mybible-cli.jar ...`) or through a platform-specific launcher. For brevity, the examples below use `mybible-cli.jar`.
 
 ### CLI Mode
