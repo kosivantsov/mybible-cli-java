@@ -385,33 +385,30 @@ public class ConfigurationDialog extends JDialog {
         }
     }
 
-// Add these two methods inside the ConfigurationDialog class
+    private void saveCurrentTheme() {
+        String themeName = JOptionPane.showInputDialog(
+            this,
+            bundle.getString("dialog.prompt.enterThemeName"),
+            bundle.getString("dialog.title.saveTheme"),
+            JOptionPane.PLAIN_MESSAGE
+        );
 
-private void saveCurrentTheme() {
-    String themeName = JOptionPane.showInputDialog(
-        this,
-        bundle.getString("dialog.prompt.enterThemeName"),
-        bundle.getString("dialog.title.saveTheme"),
-        JOptionPane.PLAIN_MESSAGE
-    );
-
-    if (themeName != null && !themeName.trim().isEmpty()) {
-        try {
-            // Create a temporary config object from the current UI state
-            GuiConfig currentConfig = new GuiConfig();
-            currentConfig.formatString = formatStringField.getText();
-            currentConfig.lookAndFeelClassName = ((ThemeInfo) lafComboBox.getSelectedItem()).className;
-            currentConfig.textAreaBackground = chosenBackgroundColor;
-            currentConfig.styles = this.config.styles; // Copy the current styles
-            
-            GuiThemeManager themeManager = new GuiThemeManager();
-            themeManager.saveTheme(themeName, currentConfig);
-        } catch (IOException ex) {
-            ex.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error saving theme: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        if (themeName != null && !themeName.trim().isEmpty()) {
+            try {
+                GuiConfig currentConfig = new GuiConfig();
+                currentConfig.formatString = formatStringField.getText();
+                currentConfig.lookAndFeelClassName = ((ThemeInfo) lafComboBox.getSelectedItem()).className;
+                currentConfig.textAreaBackground = chosenBackgroundColor;
+                currentConfig.styles = this.config.styles; // Copy the current styles
+                
+                GuiThemeManager themeManager = new GuiThemeManager();
+                themeManager.saveTheme(themeName, currentConfig);
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Error saving theme: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
-}
 
     private void loadTheme() {
         GuiThemeManager themeManager = new GuiThemeManager();

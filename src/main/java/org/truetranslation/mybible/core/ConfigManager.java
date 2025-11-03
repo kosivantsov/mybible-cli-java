@@ -13,6 +13,7 @@ import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.stream.Stream;
 
 public class ConfigManager {
     private final Path configFilePath;
@@ -72,6 +73,23 @@ public class ConfigManager {
     public void resetToDefaults() {
         try {
             Files.deleteIfExists(configFilePath);
+            Path configDir = configFilePath.getParent();
+            if (configDir != null) {
+                Files.deleteIfExists(configDir.resolve("default_mapping.json"));
+                Path moduleDataDir = configDir.resolve("moduledata");
+                if (Files.isDirectory(moduleDataDir)) {
+                    try (Stream<Path> files = Files.list(moduleDataDir)) {
+                        files.filter(p -> p.toString().endsWith(".json"))
+                             .forEach(p -> {
+                                 try {
+                                     Files.delete(p);
+                                 } catch (IOException e) {
+                                     System.err.println("Failed to delete module data file: " + p + " - " + e.getMessage());
+                                 }
+                             });
+                    }
+                }
+            }
             config = new HashMap<>();
             loadConfig();
         } catch (IOException e) {
