@@ -218,3 +218,9 @@ The **MyBible** name, icon and module format are the intellectual property of th
 This application was also inspired by [`diatheke`](https://wiki.crosswire.org/Frontends:Diatheke) and the [Crosswire Sword](http://www.crosswire.org/sword/index.jsp) project.
 
 A good place to get MyBible modules is the <a id="downloadmodules-bookmark"></a>[ph4.org website](https://www.ph4.org/b4_index.php?hd=b).
+
+## License
+
+This project is licensed under the **Apache License 2.0**.
+
+**Important**: This license applies only to the `mybible-cli` tool itself. The modules, the biblical text and other content they contain, the MyBible name, and the MyBible module format are all subject to their respective licenses and copyright holders, and are not covered by this license. Users are responsible for ensuring compliance with all applicable licenses for any content used with this tool.
