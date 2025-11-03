@@ -5,12 +5,16 @@ import com.formdev.flatlaf.themes.FlatMacDarkLaf;
 import com.formdev.flatlaf.themes.FlatMacLightLaf;
 
 import javax.swing.*;
+import javax.swing.SwingUtilities;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.ResourceBundle;
+
+import org.truetranslation.mybible.core.*;
 
 public class ConfigurationDialog extends JDialog {
 
@@ -19,6 +23,7 @@ public class ConfigurationDialog extends JDialog {
     private final JFrame owner;
     private final ResourceBundle bundle;
     private Color chosenBackgroundColor;
+    private JPanel colorPreviewPanel;
 
     private final LookAndFeel originalLaf;
     private boolean saved = false;
@@ -69,16 +74,29 @@ public class ConfigurationDialog extends JDialog {
         JPanel mainPanel = createMainPanel();
         add(mainPanel, BorderLayout.CENTER);
 
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+
+        JPanel themeButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton saveThemeButton = new JButton(bundle.getString("button.saveTheme"));
+        JButton loadThemeButton = new JButton(bundle.getString("button.loadTheme"));
+        themeButtonPanel.add(saveThemeButton);
+        themeButtonPanel.add(loadThemeButton);
+
+        JPanel actionButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton resetButton = new JButton(bundle.getString("button.resetDefaults"));
         JButton saveButton = new JButton(bundle.getString("button.save"));
         JButton cancelButton = new JButton(bundle.getString("button.cancel"));
-        
-        buttonPanel.add(resetButton);
-        buttonPanel.add(saveButton); 
-        buttonPanel.add(cancelButton);
-        add(buttonPanel, BorderLayout.SOUTH);
+        actionButtonPanel.add(resetButton);
+        actionButtonPanel.add(saveButton);
+        actionButtonPanel.add(cancelButton);
 
+        bottomPanel.add(themeButtonPanel, BorderLayout.NORTH);
+        bottomPanel.add(actionButtonPanel, BorderLayout.CENTER);
+
+        add(bottomPanel, BorderLayout.SOUTH);
+
+        saveThemeButton.addActionListener(e -> saveCurrentTheme());
+        loadThemeButton.addActionListener(e -> loadTheme());
         resetButton.addActionListener(e -> resetToDefaults());
         cancelButton.addActionListener(e -> dispose());
         saveButton.addActionListener(e -> {
@@ -101,26 +119,56 @@ public class ConfigurationDialog extends JDialog {
     }
 
     private void resetToDefaults() {
+        JPanel messagePanel = new JPanel();
+        messagePanel.setLayout(new BoxLayout(messagePanel, BoxLayout.Y_AXIS));
+        JLabel messageLabel = new JLabel(bundle.getString("dialog.message.resetConfirm"));
+        messageLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JCheckBox resetAllCheckbox = new JCheckBox(bundle.getString("checkbox.label.resetAllSettings"));
+        resetAllCheckbox.setAlignmentX(Component.LEFT_ALIGNMENT);
+        messagePanel.add(messageLabel);
+        messagePanel.add(Box.createRigidArea(new Dimension(0, 5)));
+        messagePanel.add(resetAllCheckbox);
+
         int response = JOptionPane.showConfirmDialog(
             this,
-            bundle.getString("dialog.message.resetConfirm"),
+            messagePanel,
             bundle.getString("dialog.title.resetConfirm"),
             JOptionPane.YES_NO_OPTION,
             JOptionPane.WARNING_MESSAGE
         );
 
         if (response == JOptionPane.YES_OPTION) {
-            // Create a new default config object
+            boolean fullResetPerformed = resetAllCheckbox.isSelected();
+
+            ConfigManager coreConfigManager = new ConfigManager();
+            if (fullResetPerformed) {
+                coreConfigManager.resetToDefaults();
+            }
+
             GuiConfig defaultConfig = new GuiConfig();
-            // Set the default config in the manager and save it immediately
             configManager.setConfig(defaultConfig);
             configManager.saveConfig();
-            // Update the dialog's internal config to match the newly loaded one
             this.config = configManager.getConfig();
-            // Update all UI elements from the new default config
+
+            applyLookAndFeel(); 
+
+            Window parentWindow = this.getOwner();
+            if (parentWindow != null) {
+                SwingUtilities.updateComponentTreeUI(parentWindow);
+            }
+            SwingUtilities.updateComponentTreeUI(this);
+
             updateUiFromConfig();
-            // Immediately apply the visual changes to the main application window
-            applyLookAndFeel();
+
+            if (fullResetPerformed) {
+                JOptionPane.showMessageDialog(
+                    this,
+                    bundle.getString("dialog.message.restartRequired"),
+                    bundle.getString("dialog.title.restartRequired"),
+                    JOptionPane.INFORMATION_MESSAGE
+                );
+                System.exit(0);
+            }
         }
     }
 
@@ -136,7 +184,11 @@ public class ConfigurationDialog extends JDialog {
               .findFirst()
               .ifPresent(lafComboBox::setSelectedItem);
         // Re-create the main panel to update all style rows
-        getContentPane().remove(0);
+        Container contentPane = getContentPane();
+        Component oldCenter = ((BorderLayout)contentPane.getLayout()).getLayoutComponent(BorderLayout.CENTER);
+            if (oldCenter != null) {
+                contentPane.remove(oldCenter);
+            }
         JPanel newMainPanel = createMainPanel();
         add(newMainPanel, BorderLayout.CENTER);
         // Refresh the layout
@@ -154,35 +206,57 @@ public class ConfigurationDialog extends JDialog {
         gbc.gridy = 0; gbc.gridx = 0; mainPanel.add(new JLabel(bundle.getString("label.formatString")), gbc);
         gbc.gridx = 1; gbc.gridwidth = 2; gbc.weightx = 1.0;
         formatStringField = new JTextField(config.formatString, 30);
+        String tooltipText = bundle.getString("dialog.tooltip.formatStringInfo");
+        formatStringField.setToolTipText(tooltipText);
         mainPanel.add(formatStringField, gbc);
+        gbc.gridy = 1; gbc.gridx = 2; gbc.weightx = 0;
+        JButton infoButton = new JButton(bundle.getString("button.formatHelp"));
+        mainPanel.add(infoButton, gbc);
+        infoButton.addActionListener(e -> {
+            String infoMessage = bundle.getString("dialog.message.formatStringInfo");
+            
+            JOptionPane.showMessageDialog(
+                this,
+                infoMessage,
+                bundle.getString("dialog.title.formatStringInfo"),
+                JOptionPane.INFORMATION_MESSAGE
+            );
+        });
 
-        addStyleRow(mainPanel, 1, bundle.getString("label.bookName"), "bookName");
-        addStyleRow(mainPanel, 2, bundle.getString("label.chapterNumber"), "chapter");
-        addStyleRow(mainPanel, 3, bundle.getString("label.verseNumber"), "verse");
-        addStyleRow(mainPanel, 4, bundle.getString("label.verseText"), "verseText");
+        addStyleRow(mainPanel, 2, bundle.getString("label.bookName"), "bookName");
+        addStyleRow(mainPanel, 3, bundle.getString("label.chapterNumber"), "chapter");
+        addStyleRow(mainPanel, 4, bundle.getString("label.verseNumber"), "verse");
         addStyleRow(mainPanel, 5, bundle.getString("label.moduleName"), "moduleName");
-        addStyleRow(mainPanel, 6, bundle.getString("label.strongsNumbers"), "strongsNumber");
-        addStyleRow(mainPanel, 7, bundle.getString("label.morphologyInfo"), "morphologyInfo");
-        addStyleRow(mainPanel, 8, bundle.getString("label.alternativeVerseText"), "alternativeVerseText");
-        addStyleRow(mainPanel, 9, bundle.getString("label.wordsOfJesus"), "wordsOfJesus");
-        addStyleRow(mainPanel, 10, bundle.getString("label.defaultText"), "defaultText");
-        addStyleRow(mainPanel, 11, bundle.getString("label.infoText"), "infoText");
+        addStyleRow(mainPanel, 6, bundle.getString("label.defaultText"), "defaultText");
+        addStyleRow(mainPanel, 7, bundle.getString("label.verseText"), "verseText");
+        addStyleRow(mainPanel, 8, bundle.getString("label.wordsOfJesus"), "wordsOfJesus");
+        addStyleRow(mainPanel, 9, bundle.getString("label.alternativeVerseText"), "alternativeVerseText");
+        addStyleRow(mainPanel, 10, bundle.getString("label.strongsNumbers"), "strongsNumber");
+        addStyleRow(mainPanel, 11, bundle.getString("label.morphologyInfo"), "morphologyInfo");
+        addStyleRow(mainPanel, 12, bundle.getString("label.infoText"), "infoText");
 
-        gbc.gridy = 12; gbc.gridx = 0; gbc.gridwidth = 1; gbc.weightx = 0;
+        gbc.gridy = 13; gbc.gridx = 0; gbc.gridwidth = 1; gbc.weightx = 0;
         mainPanel.add(new JLabel(bundle.getString("label.backgroundColor")), gbc);
-        gbc.gridx = 1; gbc.gridwidth = 1;
+        gbc.gridx = 1; gbc.weightx = 1.0;
+        gbc.ipady = 20;
+        colorPreviewPanel = new JPanel();
+        colorPreviewPanel.setOpaque(true);
+        colorPreviewPanel.setBorder(BorderFactory.createLineBorder(Color.gray));
+        colorPreviewPanel.setBackground(chosenBackgroundColor != null ? chosenBackgroundColor : UIManager.getColor("Panel.background"));
+        mainPanel.add(colorPreviewPanel, gbc);
+        gbc.ipady = 0;
+        gbc.gridx = 2; gbc.gridwidth = 0;
         colorButton = new JButton(bundle.getString("button.choose"));
-        colorButton.setBackground(chosenBackgroundColor != null ? chosenBackgroundColor : UIManager.getColor("Button.background"));
         mainPanel.add(colorButton, gbc);
         colorButton.addActionListener(e -> {
             Color newColor = JColorChooser.showDialog(this, bundle.getString("dialog.title.chooseColor"), chosenBackgroundColor);
             if (newColor != null) {
-                 chosenBackgroundColor = newColor;
-                 colorButton.setBackground(chosenBackgroundColor);
+                chosenBackgroundColor = newColor;
+                colorPreviewPanel.setBackground(chosenBackgroundColor);
             }
         });
 
-        gbc.gridy = 13; gbc.gridx = 0; gbc.gridwidth = 1;
+        gbc.gridy = 14; gbc.gridx = 0; gbc.gridwidth = 1;
         mainPanel.add(new JLabel(bundle.getString("label.lookAndFeel")), gbc);
         gbc.gridx = 1; gbc.gridwidth = 2; gbc.weightx = 1.0;
         lafComboBox = new JComboBox<>(THEMES.toArray(new ThemeInfo[0]));
@@ -310,4 +384,71 @@ public class ConfigurationDialog extends JDialog {
             ex.printStackTrace();
         }
     }
+
+// Add these two methods inside the ConfigurationDialog class
+
+private void saveCurrentTheme() {
+    String themeName = JOptionPane.showInputDialog(
+        this,
+        bundle.getString("dialog.prompt.enterThemeName"),
+        bundle.getString("dialog.title.saveTheme"),
+        JOptionPane.PLAIN_MESSAGE
+    );
+
+    if (themeName != null && !themeName.trim().isEmpty()) {
+        try {
+            // Create a temporary config object from the current UI state
+            GuiConfig currentConfig = new GuiConfig();
+            currentConfig.formatString = formatStringField.getText();
+            currentConfig.lookAndFeelClassName = ((ThemeInfo) lafComboBox.getSelectedItem()).className;
+            currentConfig.textAreaBackground = chosenBackgroundColor;
+            currentConfig.styles = this.config.styles; // Copy the current styles
+            
+            GuiThemeManager themeManager = new GuiThemeManager();
+            themeManager.saveTheme(themeName, currentConfig);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error saving theme: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+}
+
+    private void loadTheme() {
+        GuiThemeManager themeManager = new GuiThemeManager();
+        List<String> availableThemes = themeManager.getAvailableThemes();
+
+        if (availableThemes.isEmpty()) {
+            JOptionPane.showMessageDialog(this, bundle.getString("dialog.error.noThemesFound"), bundle.getString("dialog.title.error"), JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        String selectedTheme = (String) JOptionPane.showInputDialog(
+            this,
+            bundle.getString("dialog.prompt.selectTheme"),
+            bundle.getString("dialog.title.loadTheme"),
+            JOptionPane.PLAIN_MESSAGE,
+            null,
+            availableThemes.toArray(),
+            availableThemes.get(0)
+        );
+
+        if (selectedTheme != null) {
+            try {
+                GuiConfig loadedConfig = themeManager.loadTheme(selectedTheme);
+                if (loadedConfig != null) {
+                    this.config = loadedConfig; // Replace the dialog's current config
+
+                    // Update UI from the newly loaded config
+                    applyLookAndFeel();
+                    SwingUtilities.updateComponentTreeUI(this.getOwner());
+                    SwingUtilities.updateComponentTreeUI(this);
+                    updateUiFromConfig();
+                }
+            } catch (IOException ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(this, "Error loading theme: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
 }

@@ -69,6 +69,17 @@ public class ConfigManager {
         }
     }
 
+    public void resetToDefaults() {
+        try {
+            Files.deleteIfExists(configFilePath);
+            config = new HashMap<>();
+            loadConfig();
+        } catch (IOException e) {
+            String message = MessageFormat.format(bundle.getString("error.config.delete"), e.getMessage());
+            System.err.println(message);
+        }
+    }
+
     public String getModulesPath() { return (String) config.get("modules_path"); }
     public void setModulesPath(String path) { config.put("modules_path", path); saveConfig(); }
     public String getFormatString() { return (String) config.get("format_string"); }
