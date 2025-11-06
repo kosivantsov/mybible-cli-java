@@ -399,7 +399,7 @@ public class ConfigurationDialog extends JDialog {
                 currentConfig.formatString = formatStringField.getText();
                 currentConfig.lookAndFeelClassName = ((ThemeInfo) lafComboBox.getSelectedItem()).className;
                 currentConfig.textAreaBackground = chosenBackgroundColor;
-                currentConfig.styles = this.config.styles; // Copy the current styles
+                currentConfig.styles = this.config.styles;
                 
                 GuiThemeManager themeManager = new GuiThemeManager();
                 themeManager.saveTheme(themeName, currentConfig);
@@ -433,9 +433,8 @@ public class ConfigurationDialog extends JDialog {
             try {
                 GuiConfig loadedConfig = themeManager.loadTheme(selectedTheme);
                 if (loadedConfig != null) {
-                    this.config = loadedConfig; // Replace the dialog's current config
+                    this.config = loadedConfig;
 
-                    // Update UI from the newly loaded config
                     applyLookAndFeel();
                     SwingUtilities.updateComponentTreeUI(this.getOwner());
                     SwingUtilities.updateComponentTreeUI(this);

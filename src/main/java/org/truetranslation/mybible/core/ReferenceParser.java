@@ -69,7 +69,7 @@ public class ReferenceParser {
                 ))
                 .collect(Collectors.toList());
     }
-    
+
     private List<Range> parseInternal(String rawReference) {
         List<Range> finalRanges = new ArrayList<>();
         ParseState state = new ParseState();
@@ -121,7 +121,7 @@ public class ReferenceParser {
         int targetChapter = ref.getChapter();
         int targetVerse = ref.getVerse();
         int offset = 0;
-        
+
         for (int ch = 1; ch < targetChapter; ch++) {
             int chapterKey = bookNum * 1000 + ch;
             offset += verseIndex.getOrDefault(chapterKey, 0);
@@ -152,12 +152,12 @@ public class ReferenceParser {
         }
         return totalVerses;
     }
-    
+
     private boolean bookExistsInModule(int bookNum) {
         int bookPrefix = bookNum * 1000;
         return verseIndex.keySet().stream().anyMatch(k -> k >= bookPrefix && k < (bookPrefix + 1000));
     }
-    
+
     private boolean isFullBookReference(String part) { return !part.matches(".*\\d.*"); }
 
     private Reference findLastVerseOfBook(int bookNum, String bookName) {
@@ -167,42 +167,72 @@ public class ReferenceParser {
         int lastVerse = verseIndex.getOrDefault(maxKey, 1);
         return new Reference(bookNum, lastChapter, lastVerse, bookName);
     }
-    
+
     private Reference parseSubPart(String part, ParseState state) {
         try {
             String trimmedPart = part.trim();
             trimmedPart = trimmedPart.replace(".", "");
             String[] tokens = trimmedPart.split("\\s+");
+
             String bookString = null;
             Integer bookNum = null;
             int bookTokensCount = 0;
-            for (int i = tokens.length; i > 0; i--) {
-                String name = String.join(" ", Arrays.copyOfRange(tokens, 0, i));
-                Optional<Book> optBook = bookMapper.getBook(name);
-                if (optBook.isPresent()) {
-                    Book book = optBook.get();
-                    bookNum = book.getBookNumber();
-                    bookString = name;
-                    bookTokensCount = i;
-                    break;
+
+            // Numeric book marker fast path - check for {NN} syntax
+            String firstToken = tokens[0];
+            if (firstToken.matches("^\\{\\d{1,3}\\}$")) {
+                // Extract the number from {NN}
+                String numberStr = firstToken.replaceAll("[{}]", "");
+                int explicitNumericBook = Integer.parseInt(numberStr);
+
+                // Validate this book exists in the module
+                if (!bookExistsInModule(explicitNumericBook)) {
+                    String message = MessageFormat.format(bundle.getString("parse.error.bookNotFound"), firstToken);
+                    System.err.println(message);
+                    return null;
+                }
+
+                // Set the book in state and use the marker as the "book name"
+                state.book = explicitNumericBook;
+                state.bookString = firstToken;
+                bookNum = explicitNumericBook;
+                bookString = firstToken;
+                bookTokensCount = 1;
+            } else {
+                for (int i = tokens.length; i > 0; i--) {
+                    String name = String.join(" ", Arrays.copyOfRange(tokens, 0, i));
+                    Optional<Book> optBook = bookMapper.getBook(name);
+                    if (optBook.isPresent()) {
+                        Book book = optBook.get();
+                        bookNum = book.getBookNumber();
+                        bookString = name;
+                        bookTokensCount = i;
+                        break;
+                    }
                 }
             }
+
             boolean bookWasExplicitlyFound = bookNum != null;
             if (bookWasExplicitlyFound) {
                 state.bookString = bookString;
                 state.book = bookNum;
-            } else { bookNum = state.book; }
-            if (bookNum == null || !bookExistsInModule(bookNum)) {
-                 String message = MessageFormat.format(bundle.getString("parse.error.bookNotFound"), tokens[0]);
-                 System.err.println(message);
-                 return null;
+            } else { 
+                bookNum = state.book; 
             }
+
+            if (bookNum == null || !bookExistsInModule(bookNum)) {
+                String message = MessageFormat.format(bundle.getString("parse.error.bookNotFound"), tokens[0]);
+                System.err.println(message);
+                return null;
+            }
+
             String[] remainingTokens = Arrays.copyOfRange(tokens, bookTokensCount, tokens.length);
             if (remainingTokens.length > 1) {
                 String message = MessageFormat.format(bundle.getString("parse.error.extraTokens"), String.join(" ", remainingTokens));
                 System.err.println(message);
                 return null;
             }
+
             if (remainingTokens.length == 0) {
                 state.wasVerse = false;
                 state.chapter = 1;
@@ -228,10 +258,10 @@ public class ReferenceParser {
             } else {
                 int number = Integer.parseInt(remainingTokens[0]);
                 if (state.wasVerse && !bookWasExplicitlyFound) {
-                     state.wasVerse = true;
+                    state.wasVerse = true;
                     return new Reference(bookNum, state.chapter, number, state.bookString);
                 } else {
-                     if (!verseIndex.containsKey(bookNum * 1000 + number)) {
+                    if (!verseIndex.containsKey(bookNum * 1000 + number)) {
                         String message = MessageFormat.format(bundle.getString("parse.error.chapterNotFound"), number, state.bookString);
                         System.err.println(message);
                         return null;
@@ -247,7 +277,7 @@ public class ReferenceParser {
             return null;
         }
     }
-    
+
     private int compareReferences(Reference a, Reference b) {
         int bookCompare = Integer.compare(a.getBook(), b.getBook());
         if (bookCompare != 0) return bookCompare;

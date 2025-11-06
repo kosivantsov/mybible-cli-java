@@ -63,6 +63,10 @@ public class BookMappingManager {
             }
         }
 
+        if (mappingFile.getFileName().toString().equals(DEFAULT_MAPPING_FILENAME)) {
+            MappingBackupManager.performSilentBackup(configDir);
+        }
+
         // Load the mapper from the determined file path.
         return new BookMapper(Files.newInputStream(mappingFile));
     }

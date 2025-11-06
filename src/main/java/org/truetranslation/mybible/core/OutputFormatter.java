@@ -17,6 +17,8 @@ public class OutputFormatter {
     private final BookMapper defaultBookMapper;
     private final BookMapper moduleBookMapper;
     private final String moduleName;
+    private final String moduleLanguage;
+    private final String userLanguage;
 
     // --- ANSI Escape Codes ---
     private static final String RESET_TO_NORMAL = "\u001B[0m";
@@ -27,11 +29,13 @@ public class OutputFormatter {
     private static final String START_LIGHTGREY_ITALICS = "\u001B[3;90m";
     private static final String START_CYAN = "\u001B[36m";
 
-    public OutputFormatter(String formatString, BookMapper defaultBookMapper, BookMapper moduleBookMapper, String moduleName) {
+    public OutputFormatter(String formatString, BookMapper defaultBookMapper, BookMapper moduleBookMapper, String moduleName, String moduleLanguage, String userLanguage) {
         this.formatString = formatString;
         this.defaultBookMapper = defaultBookMapper;
         this.moduleBookMapper = moduleBookMapper;
         this.moduleName = moduleName;
+        this.moduleLanguage = moduleLanguage != null ? moduleLanguage : "en";
+        this.userLanguage = userLanguage;
     }
 
     private String createSimplePlainText(String text) {
@@ -147,7 +151,13 @@ public class OutputFormatter {
 
         final String userProvidedShortName = (reference != null) ? reference.getBookName() : null;
 
-        Optional<Book> defaultBookOpt = defaultBookMapper.getBook(verse.getBookNumber());
+        // Use language-aware default book lookup
+        Optional<Book> defaultBookOpt = defaultBookMapper.getBook(verse.getBookNumber(), userLanguage, moduleLanguage);
+        if (!defaultBookOpt.isPresent()) {
+            // Fallback to regular lookup if language-specific lookup fails
+            defaultBookOpt = defaultBookMapper.getBook(verse.getBookNumber());
+        }
+
         Optional<Book> moduleBookOpt = moduleBookMapper.getBook(verse.getBookNumber());
 
         String defaultFullName = defaultBookOpt.map(Book::getFullName).orElse("");

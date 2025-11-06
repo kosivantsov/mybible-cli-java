@@ -86,6 +86,9 @@ public class Main implements Callable<Integer> {
         @Option(names = {"-a", "--abbr-prefix"}, descriptionKey = "abbrprefix")
         private String abbreviationsPrefix;
 
+        @Option(names = {"-l", "--language"}, descriptionKey = "language")
+        private String userLanguage;
+
         @Option(names = {"-f", "--format"}, descriptionKey = "format")
         private String formatString;
         @Option(names = {"-F", "--save-format"}, descriptionKey = "saveformat")
@@ -165,7 +168,9 @@ public class Main implements Callable<Integer> {
                 List<Verse> verses = fetcher.fetch(ranges);
                 configManager.setLastUsedModule(moduleName);
                 
-                OutputFormatter formatter = new OutputFormatter(activeFormatString, defaultBookMapper, moduleBookMapper, moduleName);
+                // Extract module language and create language-aware formatter
+                String moduleLanguage = BookMapper.extractModuleLanguage(modulePath);
+                OutputFormatter formatter = new OutputFormatter(activeFormatString, defaultBookMapper, moduleBookMapper, moduleName, moduleLanguage, userLanguage);
 
                 if (! outputJson) {
                     for (Verse verse : verses) {
@@ -183,7 +188,12 @@ public class Main implements Callable<Integer> {
                         String userProvidedShortName = ref != null ? ref.getBookName() : null;
                         int bookNum = verse.getBookNumber();
 
-                        Optional<Book> defaultBookOpt = defaultBookMapper.getBook(bookNum);
+                        // Use language-aware lookup for default names
+                        Optional<Book> defaultBookOpt = defaultBookMapper.getBook(bookNum, userLanguage, moduleLanguage);
+                        if (!defaultBookOpt.isPresent()) {
+                            defaultBookOpt = defaultBookMapper.getBook(bookNum); // Fallback
+                        }
+                        
                         String defaultFullName = defaultBookOpt.map(Book::getFullName).orElse("");
                         String defaultShortName = defaultBookOpt.map(book ->
                             (userProvidedShortName != null && book.getShortNames().contains(userProvidedShortName)) ? userProvidedShortName : book.getShortNames().stream().findFirst().orElse("")
