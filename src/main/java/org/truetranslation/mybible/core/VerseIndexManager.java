@@ -31,7 +31,10 @@ public class VerseIndexManager {
     public VerseIndexManager(ConfigManager configManager, int verbosity) {
         this.moduleDataDir = configManager.getDefaultConfigDir().resolve("moduledata");
         this.verbosity = verbosity;
-        this.bundle = ResourceBundle.getBundle("i18n.messages");
+        ExternalResourceBundleLoader externalLoader = new ExternalResourceBundleLoader(
+            configManager.getDefaultConfigDir()
+        );
+        this.bundle = externalLoader.getBundle("i18n.messages");
     }
 
     public Map<Integer, Integer> getVerseIndex(String moduleName, Path modulePath) {

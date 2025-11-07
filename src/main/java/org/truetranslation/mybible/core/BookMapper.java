@@ -33,7 +33,12 @@ public class BookMapper {
     // Store the raw language-aware mapping data
     private final Map<Integer, Map<String, Object>> languageAwareMapping = new HashMap<>();
     
-    private static final ResourceBundle bundle = ResourceBundle.getBundle("i18n.messages");
+    private static final ConfigManager configManager = new ConfigManager();
+    private static ExternalResourceBundleLoader externalLoader = new ExternalResourceBundleLoader(
+        configManager.getDefaultConfigDir()
+    );
+    
+    private static ResourceBundle bundle = externalLoader.getBundle("i18n.messages");
     
     // Default language used when no specific language is provided
     private static final String DEFAULT_FALLBACK = "default";

@@ -12,8 +12,6 @@ public class BookMappingManager {
 
     private static final String DEFAULT_MAPPING_FILENAME = "default_mapping.json";
 
-    private static final ResourceBundle bundle = ResourceBundle.getBundle("i18n.messages");
-
     /**
      * Gets the default BookMapper by ensuring default_mapping.json exists.
      */
@@ -33,6 +31,9 @@ public class BookMappingManager {
         Path configDir = configManager.getDefaultConfigDir();
         Path mappingFile = null;
         int verbosity = configManager.getVerbosity();
+
+        ExternalResourceBundleLoader externalLoader = new ExternalResourceBundleLoader(configDir);
+        ResourceBundle bundle = externalLoader.getBundle("i18n.messages");
 
         if (prefix != null && !prefix.trim().isEmpty()) {
             // A custom prefix is provided. Attempt to use the custom file.

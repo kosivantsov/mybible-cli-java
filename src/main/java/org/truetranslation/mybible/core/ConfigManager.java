@@ -18,8 +18,8 @@ import java.util.stream.Stream;
 public class ConfigManager {
     private final Path configFilePath;
     private Map<String, Object> config;
+    private static ResourceBundle bundle;
     private static final String DEFAULT_FORMAT = "%A %c:%v %t";
-    private static final ResourceBundle bundle = ResourceBundle.getBundle("i18n.messages");
 
     public ConfigManager() {
         String userHome = System.getProperty("user.home");
@@ -32,6 +32,8 @@ public class ConfigManager {
         } else {
             configDir = Paths.get(userHome, ".config", "mybible-cli-java");
         }
+        ExternalResourceBundleLoader loader = new ExternalResourceBundleLoader(configDir);
+        bundle = loader.getBundle("i18n.messages");
         this.configFilePath = configDir.resolve("config.json");
         loadConfig();
     }

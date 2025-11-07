@@ -53,6 +53,8 @@ import picocli.CommandLine.Spec;
     }
 )
 public class Main implements Callable<Integer> {
+    private static ExternalResourceBundleLoader externalLoader;
+    private static final ResourceBundle bundle;
 
     static {
         String language = System.getProperty("user.language");
@@ -65,8 +67,10 @@ public class Main implements Callable<Integer> {
                 Locale.setDefault(new Locale(language));
             }
         }
+        ConfigManager configManager = new ConfigManager();
+        externalLoader = new ExternalResourceBundleLoader(configManager.getDefaultConfigDir());
+        bundle = externalLoader.getBundle("i18n.messages");
     }
-    private static final ResourceBundle bundle = ResourceBundle.getBundle("i18n.messages");
 
     @Override
     public Integer call() {

@@ -57,12 +57,17 @@ public class ConfigurationDialog extends JDialog {
             new ThemeInfo("Solarized Dark", FlatSolarizedDarkIJTheme.class.getName())
     );
 
+    private static ConfigManager coreConfigManager = new ConfigManager();
+
     public ConfigurationDialog(JFrame owner, GuiConfigManager configManager) {
         super(owner, "Configuration", true);
         this.owner = owner;
         this.configManager = configManager;
         this.config = configManager.getConfig();
-        this.bundle = ResourceBundle.getBundle("i18n.gui");
+        ExternalResourceBundleLoader externalLoader = new ExternalResourceBundleLoader(
+            coreConfigManager.getDefaultConfigDir()
+        );
+        this.bundle = externalLoader.getBundle("i18n.gui");
         this.chosenBackgroundColor = config.textAreaBackground;
 
         this.originalLaf = UIManager.getLookAndFeel();
@@ -140,7 +145,6 @@ public class ConfigurationDialog extends JDialog {
         if (response == JOptionPane.YES_OPTION) {
             boolean fullResetPerformed = resetAllCheckbox.isSelected();
 
-            ConfigManager coreConfigManager = new ConfigManager();
             if (fullResetPerformed) {
                 coreConfigManager.resetToDefaults();
             }
