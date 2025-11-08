@@ -84,8 +84,10 @@ public class ConfigurationDialog extends JDialog {
         JPanel themeButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton saveThemeButton = new JButton(bundle.getString("button.saveTheme"));
         JButton loadThemeButton = new JButton(bundle.getString("button.loadTheme"));
+        JButton extensionsButton = new JButton(bundle.getString("button.manageExtensions"));
         themeButtonPanel.add(saveThemeButton);
         themeButtonPanel.add(loadThemeButton);
+        themeButtonPanel.add(extensionsButton);
 
         JPanel actionButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton resetButton = new JButton(bundle.getString("button.resetDefaults"));
@@ -102,6 +104,7 @@ public class ConfigurationDialog extends JDialog {
 
         saveThemeButton.addActionListener(e -> saveCurrentTheme());
         loadThemeButton.addActionListener(e -> loadTheme());
+        extensionsButton.addActionListener(e -> openExtensionManager());
         resetButton.addActionListener(e -> resetToDefaults());
         cancelButton.addActionListener(e -> dispose());
         saveButton.addActionListener(e -> {
@@ -121,6 +124,17 @@ public class ConfigurationDialog extends JDialog {
         initEscapeToClose();
         pack();
         setLocationRelativeTo(owner);
+    }
+
+    private void openExtensionManager() {
+        GuiExtensionManager extManager = new GuiExtensionManager(owner);
+        extManager.setVisible(true);
+
+        GuiThemeManager themeManager = new GuiThemeManager();
+        List<String> currentThemes = themeManager.getAvailableThemes();
+
+        SwingUtilities.updateComponentTreeUI(this);
+        repaint();
     }
 
     private void resetToDefaults() {
@@ -450,5 +464,4 @@ public class ConfigurationDialog extends JDialog {
             }
         }
     }
-
 }

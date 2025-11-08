@@ -5,7 +5,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import java.awt.Desktop;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.InputStreamReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,6 +25,9 @@ import java.util.ResourceBundle;
 import javax.swing.*;
 
 import org.truetranslation.mybible.core.*;
+import org.truetranslation.mybible.core.ExtensionManager;
+import org.truetranslation.mybible.core.ExtensionManager.ExtensionInfo;
+import org.truetranslation.mybible.core.ExtensionManager.ExtensionValidationException;
 import org.truetranslation.mybible.core.model.Book;
 import org.truetranslation.mybible.core.model.GuiVerse;
 import org.truetranslation.mybible.core.model.Reference;
@@ -49,6 +54,7 @@ import picocli.CommandLine.Spec;
         Main.ParseCommand.class,
         Main.OpenCommand.class,
         Main.GuiCommand.class,
+        Main.ExtCommand.class,
         Main.HelpCommand.class
     }
 )
@@ -260,7 +266,7 @@ public class Main implements Callable<Integer> {
                 mainCommand.usage(System.out);
                 System.out.println();
                 System.out.println(bundle.getString("help.header"));
-                List<String> topics = Arrays.asList("get", "list", "parse", "open", "gui", "help", "format");
+                List<String> topics = Arrays.asList("get", "list", "parse", "open", "gui", "ext", "help", "format");
                 for (String topicName : topics) {
                     String description = bundle.getString("help.topic." + topicName + ".description");
                     String formattedLine = String.format("  @|bold %-6s|@ %s", topicName, description);
@@ -333,6 +339,284 @@ public class Main implements Callable<Integer> {
                 return 1;
             }
             return 0;
+        }
+    }
+
+    @Command(name = "ext", resourceBundle = "picocli.ext")
+    static class ExtCommand implements Callable<Integer> {
+
+        // private static final ResourceBundle bundle = ResourceBundle.getBundle("i18n.messages");
+
+        @Option(names = {"-i", "--install"}, paramLabel = "<file>", descriptionKey = "install")
+        private String installPath;
+
+        @Option(names = {"-u", "--uninstall"}, paramLabel = "<name>", descriptionKey = "uninstall", arity = "0..1")
+        private String uninstallName;
+
+        @Option(names = {"-l", "--list"}, descriptionKey = "list")
+        private boolean list;
+
+        @Option(names = {"-s", "--show", "--info"}, paramLabel = "<name>", descriptionKey = "show")
+        private String showName;
+
+        @Option(names = {"--all"}, descriptionKey = "all")
+        private boolean uninstallAll;
+
+        @Option(names = {"--verbose"}, descriptionKey = "verbose")
+        private boolean verbose;
+
+        @Option(names = {"--silent"}, descriptionKey = "silent")
+        private boolean silent;
+
+        @Override
+        public Integer call() {
+            ConfigManager configManager = new ConfigManager();
+            int verbosity = configManager.getVerbosity();
+            if (verbose) verbosity = 1;
+            if (silent) verbosity = 0;
+
+            ExtensionManager extensionManager = new ExtensionManager(configManager, verbosity);
+
+            try {
+                // Install extension
+                if (installPath != null) {
+                    return installExtension(extensionManager, installPath);
+                }
+
+                // Uninstall extension(s)
+                if (uninstallName != null || uninstallAll) {
+                    return uninstallExtensions(extensionManager);
+                }
+
+                // Show extension info
+                if (showName != null) {
+                    return showExtensionInfo(extensionManager, showName);
+                }
+
+                // List extensions
+                if (list) {
+                    return listExtensions(extensionManager);
+                }
+
+                // No option specified, show usage
+                System.err.println(bundle.getString("error.ext.noOption"));
+                return 1;
+
+            } catch (Exception e) {
+                System.err.println(MessageFormat.format(
+                    bundle.getString("error.unexpected"),
+                    e.getMessage()
+                ));
+                if (verbosity > 0) {
+                    e.printStackTrace();
+                }
+                return 1;
+            }
+        }
+
+        private int installExtension(ExtensionManager extensionManager, String filePath) {
+            try {
+                Path zipPath = Paths.get(filePath);
+                extensionManager.installExtension(zipPath);
+                return 0;
+            } catch (ExtensionValidationException e) {
+                System.err.println(MessageFormat.format(
+                    bundle.getString("error.ext.validationFailed"),
+                    e.getMessage()
+                ));
+                return 1;
+            } catch (IOException e) {
+                System.err.println(MessageFormat.format(
+                    bundle.getString("error.ext.installFailed"),
+                    e.getMessage()
+                ));
+                return 1;
+            }
+        }
+
+        private int uninstallExtensions(ExtensionManager extensionManager) {
+            try {
+                if (uninstallAll) {
+                    return uninstallAllExtensions(extensionManager);
+                } else if (uninstallName != null && !uninstallName.isEmpty()) {
+                    extensionManager.uninstallExtension(uninstallName);
+                    return 0;
+                } else {
+                    System.err.println(bundle.getString("error.ext.noUninstallTarget"));
+                    return 1;
+                }
+            } catch (IOException e) {
+                System.err.println(MessageFormat.format(
+                    bundle.getString("error.ext.uninstallFailed"),
+                    e.getMessage()
+                ));
+                return 1;
+            }
+        }
+
+        private int uninstallAllExtensions(ExtensionManager extensionManager) throws IOException {
+            List<ExtensionInfo> extensions = extensionManager.listExtensions();
+
+            if (extensions.isEmpty()) {
+                System.out.println(bundle.getString("msg.ext.noExtensions"));
+                return 0;
+            }
+
+            // Show what will be uninstalled
+            System.out.println(bundle.getString("msg.ext.uninstallAllPrompt"));
+            for (ExtensionInfo ext : extensions) {
+                System.out.println("  - " + ext.manifest.name + " v" + ext.manifest.version);
+            }
+            System.out.println();
+
+            // Ask for confirmation
+            System.out.print(bundle.getString("msg.ext.confirmUninstallAll"));
+            System.out.flush();
+
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
+                String response = reader.readLine();
+                if (response == null || !response.trim().toLowerCase().matches("y|yes")) {
+                    System.out.println(bundle.getString("msg.ext.cancelled"));
+                    return 0;
+                }
+            } catch (IOException e) {
+                System.err.println(bundle.getString("error.ext.inputFailed"));
+                return 1;
+            }
+
+            // Uninstall all extensions
+            int successCount = 0;
+            int failCount = 0;
+
+            for (ExtensionInfo ext : extensions) {
+                try {
+                    extensionManager.uninstallExtension(ext.manifest.name);
+                    successCount++;
+                } catch (IOException e) {
+                    System.err.println(MessageFormat.format(
+                        bundle.getString("error.ext.uninstallItemFailed"),
+                        ext.manifest.name,
+                        e.getMessage()
+                    ));
+                    failCount++;
+                }
+            }
+
+            // Show summary
+            System.out.println();
+            System.out.println(MessageFormat.format(
+                bundle.getString("msg.ext.uninstallSummary"),
+                successCount,
+                failCount
+            ));
+
+            return failCount > 0 ? 1 : 0;
+        }
+
+        private int listExtensions(ExtensionManager extensionManager) {
+            try {
+                List<ExtensionInfo> extensions = extensionManager.listExtensions();
+
+                if (extensions.isEmpty()) {
+                    System.out.println(bundle.getString("msg.ext.noExtensions"));
+                    return 0;
+                }
+
+                System.out.println(bundle.getString("msg.ext.installedExtensions"));
+                System.out.println();
+
+                for (ExtensionInfo ext : extensions) {
+                    System.out.println(ext.toString());
+                }
+
+                return 0;
+            } catch (IOException e) {
+                System.err.println(MessageFormat.format(
+                    bundle.getString("error.ext.listFailed"),
+                    e.getMessage()
+                ));
+                return 1;
+            }
+        }
+
+        private int showExtensionInfo(ExtensionManager extensionManager, String extensionName) {
+            try {
+                List<ExtensionInfo> extensions = extensionManager.listExtensions();
+                ExtensionInfo targetExt = null;
+
+                for (ExtensionInfo ext : extensions) {
+                    if (ext.manifest.name.equals(extensionName)) {
+                        targetExt = ext;
+                        break;
+                    }
+                }
+
+                if (targetExt == null) {
+                    System.err.println(MessageFormat.format(
+                        bundle.getString("error.extension.notFound"),
+                        extensionName
+                    ));
+                    return 1;
+                }
+
+                // Display extension information
+                System.out.println(bundle.getString("msg.ext.extensionInfo"));
+                System.out.println();
+                System.out.println(MessageFormat.format(
+                    bundle.getString("msg.ext.info.name"),
+                    targetExt.manifest.name
+                ));
+                System.out.println(MessageFormat.format(
+                    bundle.getString("msg.ext.info.version"),
+                    targetExt.manifest.version
+                ));
+
+                if (targetExt.manifest.description != null) {
+                    System.out.println(MessageFormat.format(
+                        bundle.getString("msg.ext.info.description"),
+                        targetExt.manifest.description
+                    ));
+                }
+
+                if (targetExt.manifest.author != null) {
+                    System.out.println(MessageFormat.format(
+                        bundle.getString("msg.ext.info.author"),
+                        targetExt.manifest.author
+                    ));
+                }
+
+                System.out.println();
+                System.out.println(bundle.getString("msg.ext.info.files"));
+
+                if (targetExt.manifest.mappingFiles != null && !targetExt.manifest.mappingFiles.isEmpty()) {
+                    System.out.println("  " + bundle.getString("msg.ext.info.mappings"));
+                    for (String file : targetExt.manifest.mappingFiles) {
+                        System.out.println("    - " + file);
+                    }
+                }
+
+                if (targetExt.manifest.resourceFiles != null && !targetExt.manifest.resourceFiles.isEmpty()) {
+                    System.out.println("  " + bundle.getString("msg.ext.info.resources"));
+                    for (String file : targetExt.manifest.resourceFiles) {
+                        System.out.println("    - " + file);
+                    }
+                }
+
+                if (targetExt.manifest.themeFiles != null && !targetExt.manifest.themeFiles.isEmpty()) {
+                    System.out.println("  " + bundle.getString("msg.ext.info.themes"));
+                    for (String file : targetExt.manifest.themeFiles) {
+                        System.out.println("    - " + file);
+                    }
+                }
+
+                return 0;
+            } catch (IOException e) {
+                System.err.println(MessageFormat.format(
+                    bundle.getString("error.ext.showFailed"),
+                    e.getMessage()
+                ));
+                return 1;
+            }
         }
     }
 
