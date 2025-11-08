@@ -32,7 +32,7 @@ public class GuiExtensionManager extends JDialog {
     private List<ExtensionInfo> extensions;
 
     public GuiExtensionManager(JFrame parent) {
-        super(parent, true); // Modal dialog
+        super(parent, true);
 
         this.configManager = new ConfigManager();
         this.extensionManager = new ExtensionManager(configManager, 1);
@@ -287,7 +287,7 @@ public class GuiExtensionManager extends JDialog {
             );
         }
 
-        loadExtensions(); // Reload the list
+        loadExtensions();
     }
 
     private void showInfo() {
@@ -362,9 +362,7 @@ public class GuiExtensionManager extends JDialog {
         );
     }
 
-    /**
-     * List item wrapper class.
-     */
+    // List item wrapper class.
     private static class ExtensionListItem {
         ExtensionInfo extensionInfo;
         boolean checked;
@@ -375,9 +373,7 @@ public class GuiExtensionManager extends JDialog {
         }
     }
 
-    /**
-     * Custom cell renderer for extension list.
-     */
+    // Custom cell renderer for extension list.
     private class ExtensionListCellRenderer extends JPanel implements ListCellRenderer<ExtensionListItem> {
         private JCheckBox checkbox;
         private JLabel nameLabel;
