@@ -14,6 +14,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.text.MessageFormat;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
@@ -92,7 +94,7 @@ public class Main implements Callable<Integer> {
         private String referenceString;
         @Option(names = {"-A", "--self-abbr"}, descriptionKey = "selfabbr")
         private boolean useSelfAbbreviations;
-        
+
         @Option(names = {"-a", "--abbr-prefix"}, descriptionKey = "abbrprefix")
         private String abbreviationsPrefix;
 
@@ -152,8 +154,8 @@ public class Main implements Callable<Integer> {
                 VerseIndexManager indexManager = new VerseIndexManager(configManager, verbosity);
                 Map<Integer, Integer> verseIndex = indexManager.getVerseIndex(moduleName, modulePath);
 
-                BookMapper defaultBookMapper = BookMappingManager.getBookMapper(configManager, abbreviationsPrefix);
-                
+                BookMapper defaultBookMapper = BookMappingManager.getBookMapper(configManager, abbreviationsPrefix, userLanguage);
+
                 BookMapper moduleBookMapper;
                 try {
                     AbbreviationManager abbrManager = new AbbreviationManager(configManager, verbosity);
@@ -165,7 +167,7 @@ public class Main implements Callable<Integer> {
                     }
                     moduleBookMapper = defaultBookMapper;
                 }
-                
+
                 BookMapper parserMapper = useSelfAbbreviations ? moduleBookMapper : defaultBookMapper;
                 ReferenceParser parser = new ReferenceParser(parserMapper, verseIndex);
 
@@ -177,7 +179,7 @@ public class Main implements Callable<Integer> {
                 fetcher = new VerseFetcher(modulePath);
                 List<Verse> verses = fetcher.fetch(ranges);
                 configManager.setLastUsedModule(moduleName);
-                
+
                 // Extract module language and create language-aware formatter
                 String moduleLanguage = BookMapper.extractModuleLanguage(modulePath);
                 OutputFormatter formatter = new OutputFormatter(activeFormatString, defaultBookMapper, moduleBookMapper, moduleName, moduleLanguage, userLanguage);
@@ -203,7 +205,7 @@ public class Main implements Callable<Integer> {
                         if (!defaultBookOpt.isPresent()) {
                             defaultBookOpt = defaultBookMapper.getBook(bookNum); // Fallback
                         }
-                        
+
                         String defaultFullName = defaultBookOpt.map(Book::getFullName).orElse("");
                         String defaultShortName = defaultBookOpt.map(book ->
                             (userProvidedShortName != null && book.getShortNames().contains(userProvidedShortName)) ? userProvidedShortName : book.getShortNames().stream().findFirst().orElse("")
@@ -222,6 +224,7 @@ public class Main implements Callable<Integer> {
                             defaultShortName,
                             moduleFullName,
                             moduleShortName,
+                            defaultBookMapper.getAllBookNames(bookNum, moduleBookMapper, moduleLanguage, userLanguage),
                             verse.getChapter(),
                             verse.getVerse(),
                             verse.getText(),
@@ -229,8 +232,9 @@ public class Main implements Callable<Integer> {
                         ));
                     }
                     Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-                    String jsonForGui = gson.toJson(guiVerses);
-                    System.out.println(jsonForGui);
+                    String printJson = gson.toJson(guiVerses);
+                    printJson = compactArrayField(printJson, "allBookNames");
+                    System.out.println(printJson);
                 }
 
             } catch (Exception e) {
@@ -631,12 +635,15 @@ public class Main implements Callable<Integer> {
 
         @Option(names = {"-r", "--reference"}, required = true, descriptionKey = "reference")
         private String referenceString;
-        
+
         @Option(names = {"-A", "--self-abbr"}, descriptionKey = "selfabbr")
         private boolean useModuleAbbreviations;
 
         @Option(names = {"-a", "--abbr-prefix"}, paramLabel = "<prefix>", descriptionKey = "abbrprefix")
         private String customMappingPrefix;
+
+        @Option(names = {"-l", "--language"}, descriptionKey = "language")
+        private String userLanguage;
 
         @Override
         public Integer call() {
@@ -658,6 +665,9 @@ public class Main implements Callable<Integer> {
             }
 
             try {
+                // Extract module language
+                String moduleLanguage = BookMapper.extractModuleLanguage(modulePath);
+
                 VerseIndexManager indexManager = new VerseIndexManager(configManager, verbosity);
                 BookMapper bookMapper;
 
@@ -666,9 +676,9 @@ public class Main implements Callable<Integer> {
                     Path abbrFile = abbrManager.ensureAbbreviationFile(moduleName, modulePath);
                     bookMapper = new BookMapper(abbrManager.loadAbbreviations(abbrFile));
                 } else if (customMappingPrefix != null) {
-                    bookMapper = BookMappingManager.getBookMapper(configManager, customMappingPrefix);
+                    bookMapper = BookMappingManager.getBookMapper(configManager, customMappingPrefix, userLanguage, moduleLanguage);
                 } else {
-                    bookMapper = BookMappingManager.getBookMapper(configManager);
+                    bookMapper = BookMappingManager.getBookMapper(configManager, null, userLanguage, moduleLanguage);
                 }
 
                 Map<Integer, Integer> verseIndex = indexManager.getVerseIndex(moduleName, modulePath);
@@ -684,7 +694,7 @@ public class Main implements Callable<Integer> {
                     System.out.println(MessageFormat.format(bundle.getString("parse.output.header"), referenceString));
                     for (int i = 0; i < ranges.size(); i++) {
                         ReferenceParser.RangeWithCount range = ranges.get(i);
-                        
+
                         String details = MessageFormat.format(bundle.getString("parse.output.range.details"),
                                 range.start.toString(),
                                 range.end.toString(),
@@ -768,6 +778,25 @@ public class Main implements Callable<Integer> {
                 }
             }
         }
+    }
+
+    private static String compactArrayField(String json, String fieldName) {
+        Pattern pattern = Pattern.compile(
+            "\"" + fieldName + "\":\\s*\\[\\s*([^\\]]+?)\\s*\\]",
+            Pattern.DOTALL
+        );
+        Matcher matcher = pattern.matcher(json);
+        StringBuffer result = new StringBuffer();
+        while (matcher.find()) {
+            String arrayContent = matcher.group(1);
+            String compacted = arrayContent
+                .replaceAll("\\s+", " ")
+                .replaceAll(",\\s+", ", ")
+                .trim();
+            matcher.appendReplacement(result, "\"" + fieldName + "\": [" + compacted + "]");
+        }
+        matcher.appendTail(result);
+        return result.toString();
     }
 
     static class VersionProvider implements CommandLine.IVersionProvider {

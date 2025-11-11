@@ -16,7 +16,7 @@ public class BookMappingManager {
      * Gets the default BookMapper by ensuring default_mapping.json exists.
      */
     public static BookMapper getBookMapper(ConfigManager configManager) throws IOException {
-        return getBookMapper(configManager, null);
+        return getBookMapper(configManager, null, null, null);
     }
 
     /**
@@ -28,6 +28,35 @@ public class BookMappingManager {
      * @throws IOException If the default mapping file cannot be read or copied.
      */
     public static BookMapper getBookMapper(ConfigManager configManager, String prefix) throws IOException {
+        return getBookMapper(configManager, prefix, null, null);
+    }
+
+    /**
+     * Gets a BookMapper, trying a custom mapping file first and falling back to the default.
+     * Optionally restricts book name lookups to a specific language.
+     *
+     * @param configManager The application's ConfigManager.
+     * @param prefix The prefix for a custom mapping file. If null, the default is used.
+     * @param userLanguage User-specified language for book name lookups. If specified, names from this language will be available.
+     * @return A BookMapper instance.
+     * @throws IOException If the default mapping file cannot be read or copied.
+     */
+    public static BookMapper getBookMapper(ConfigManager configManager, String prefix, String userLanguage) throws IOException {
+        return getBookMapper(configManager, prefix, userLanguage, null);
+    }
+
+    /**
+     * Gets a BookMapper, trying a custom mapping file first and falling back to the default.
+     * Supports language-aware book name lookups.
+     *
+     * @param configManager The application's ConfigManager.
+     * @param prefix The prefix for a custom mapping file. If null, the default is used.
+     * @param userLanguage User-specified language for book name lookups. If specified, names from this language will be available.
+     * @param moduleLanguage Module's language. Names from this language will always be available.
+     * @return A BookMapper instance.
+     * @throws IOException If the default mapping file cannot be read or copied.
+     */
+    public static BookMapper getBookMapper(ConfigManager configManager, String prefix, String userLanguage, String moduleLanguage) throws IOException {
         Path configDir = configManager.getDefaultConfigDir();
         Path mappingFile = null;
         int verbosity = configManager.getVerbosity();
@@ -68,7 +97,7 @@ public class BookMappingManager {
             MappingBackupManager.performSilentBackup(configDir);
         }
 
-        // Load the mapper from the determined file path.
-        return new BookMapper(Files.newInputStream(mappingFile));
+        // Load the mapper from the determined file path with optional language support.
+        return new BookMapper(Files.newInputStream(mappingFile), userLanguage, moduleLanguage);
     }
 }

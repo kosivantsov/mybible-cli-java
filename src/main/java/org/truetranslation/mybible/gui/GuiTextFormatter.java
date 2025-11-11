@@ -13,6 +13,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.truetranslation.mybible.core.model.GuiVerse;
+
 public class GuiTextFormatter {
 
     private final GuiConfig config;
@@ -51,12 +53,12 @@ public class GuiTextFormatter {
                             case "v": appendSimpleText(doc, String.valueOf(verse.verse), "verse"); break;
                             case "m": appendSimpleText(doc, verse.moduleName, "moduleName"); break;
                             
-                            case "T": appendSimpleText(doc, verse.rawText, "infoText"); break;
-                            case "t": appendPlainText(doc, verse.rawText, true); break;
-                            case "z": appendPlainText(doc, verse.rawText, false); break;
-                            case "X": appendStyledText(doc, verse.rawText, true, true); break;
-                            case "Y": appendStyledText(doc, verse.rawText, false, true); break;
-                            case "Z": appendStyledText(doc, verse.rawText, false, false); break;
+                            case "T": appendSimpleText(doc, verse.rawVerseText, "infoText"); break;
+                            case "t": appendPlainText(doc, verse.rawVerseText, true); break;
+                            case "z": appendPlainText(doc, verse.rawVerseText, false); break;
+                            case "X": appendStyledText(doc, verse.rawVerseText, true, true); break;
+                            case "Y": appendStyledText(doc, verse.rawVerseText, false, true); break;
+                            case "Z": appendStyledText(doc, verse.rawVerseText, false, false); break;
                                 
                             default:
                                 appendSimpleText(doc, "%" + specifier, "defaultText");
@@ -84,8 +86,8 @@ public class GuiTextFormatter {
         doc.insertString(doc.getLength(), text, style);
     }
     
-    private void appendPlainText(StyledDocument doc, String rawText, boolean multiline) throws BadLocationException {
-        String temp = rawText
+    private void appendPlainText(StyledDocument doc, String rawVerseText, boolean multiline) throws BadLocationException {
+        String temp = rawVerseText
             .replaceAll("\\[\\d+\\]", "")
             .replaceAll("(?i)<f>.*?</f>|</?t>|~|@|@[^ ]+? ", " ")
             .replaceAll("(?i)<[SGH]>\\s*\\d+\\s*</[SGH]>", " ")
@@ -112,8 +114,8 @@ public class GuiTextFormatter {
         appendSimpleText(doc, cleaned, "verseText");
     }
 
-    private void appendStyledText(StyledDocument doc, String rawText, boolean withStrongs, boolean multiline) throws BadLocationException {
-        String tempText = rawText
+    private void appendStyledText(StyledDocument doc, String rawVerseText, boolean withStrongs, boolean multiline) throws BadLocationException {
+        String tempText = rawVerseText
                 .replaceAll("\\[\\d+\\]", "")
                 .replaceAll("(?i)<f>.*?</f>|(?i)<h>.*?</h>|<br/>|</?t>|~|@|@[^ ]+? ", " ");
 

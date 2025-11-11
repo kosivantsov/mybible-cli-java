@@ -25,6 +25,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.text.MessageFormat;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -43,10 +45,41 @@ import javax.swing.text.rtf.RTFEditorKit;
 
 import org.truetranslation.mybible.core.*;
 import org.truetranslation.mybible.core.model.Book;
+import org.truetranslation.mybible.core.model.GuiVerse;
 import org.truetranslation.mybible.core.model.Reference;
 import org.truetranslation.mybible.core.model.Verse;
 
 public class Gui extends JFrame {
+
+    private static final String[] LANGUAGE_CODES = {
+        "", // Empty default
+        "aa", "ab", "ae", "af", "ak", "am", "an", "ar", "as", "av", "ay", "az",
+        "ba", "be", "bg", "bh", "bi", "bm", "bn", "bo", "br", "bs",
+        "ca", "ce", "ch", "co", "cr", "cs", "cu", "cv", "cy",
+        "da", "de", "dv", "dz",
+        "ee", "el", "en", "eo", "es", "et", "eu",
+        "fa", "ff", "fi", "fj", "fo", "fr", "fy",
+        "ga", "gd", "gl", "gn", "gu", "gv",
+        "ha", "he", "hi", "ho", "hr", "ht", "hu", "hy", "hz",
+        "ia", "id", "ie", "ig", "ii", "ik", "io", "is", "it", "iu",
+        "ja", "jv",
+        "ka", "kg", "ki", "kj", "kk", "kl", "km", "kn", "ko", "kr", "ks", "ku", "kv", "kw", "ky",
+        "la", "lb", "lg", "li", "ln", "lo", "lt", "lu", "lv",
+        "mg", "mh", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my",
+        "na", "nb", "nd", "ne", "ng", "nl", "nn", "no", "nr", "nv", "ny",
+        "oc", "oj", "om", "or", "os",
+        "pa", "pi", "pl", "ps", "pt",
+        "qu",
+        "rm", "rn", "ro", "ru", "rw",
+        "sa", "sc", "sd", "se", "sg", "si", "sk", "sl", "sm", "sn", "so", "sq", "sr", "ss", "st", "su", "sv", "sw",
+        "ta", "te", "tg", "th", "ti", "tk", "tl", "tn", "to", "tr", "ts", "tt", "tw", "ty",
+        "ug", "uk", "ur", "uz",
+        "ve", "vi", "vo",
+        "wa", "wo",
+        "xh",
+        "yi", "yo",
+        "za", "zh", "zu"
+    };
 
     private JTextPane textDisplayPane;
     private JTextField referenceInputField;
@@ -54,6 +87,7 @@ public class Gui extends JFrame {
     private JTextField modulePathField;
     private JCheckBox rawJsonCheckbox;
     private JTextField mappingFileField;
+    private JComboBox<String> languageComboBox;
     private JCheckBox useModuleAbbrsCheckbox;
     
     private final ConfigManager configManager;
@@ -194,7 +228,16 @@ public class Gui extends JFrame {
         JButton mapBrowseButton = new JButton(bundle.getString("button.browse"));
         inputPanel.add(mapBrowseButton, gbc);
 
-        gbc.gridy = 5; gbc.gridx = 1; gbc.gridwidth = 2;
+        gbc.gridy = 5; gbc.gridx = 0; gbc.gridwidth = 1; gbc.weightx = 0;
+        inputPanel.add(new JLabel(bundle.getString("label.abbrLanguage")), gbc);
+        gbc.gridx = 1; gbc.weightx = 1.0; gbc.gridwidth = 1;
+        languageComboBox = new JComboBox<>(LANGUAGE_CODES);
+        languageComboBox.setEditable(true);
+        languageComboBox.setSelectedIndex(0);
+        languageComboBox.setToolTipText(bundle.getString("dialog.tooltip.abbrLanguage"));
+        inputPanel.add(languageComboBox, gbc);
+
+        gbc.gridy = 6; gbc.gridx = 1; gbc.gridwidth = 2;
         useModuleAbbrsCheckbox = new JCheckBox(bundle.getString("label.useModuleAbbrs"));
         useModuleAbbrsCheckbox.setSelected(guiConfig.useModuleAbbreviations);
         inputPanel.add(useModuleAbbrsCheckbox, gbc);
@@ -215,6 +258,9 @@ public class Gui extends JFrame {
         showButton.addActionListener(e -> updateAndDisplayVerseData());
         referenceInputField.addActionListener(e -> updateAndDisplayVerseData());
         moduleComboBox.addActionListener(e -> updateAndDisplayVerseData());
+        languageComboBox.addActionListener(e -> {
+            updateAndDisplayVerseData();
+        });
         useModuleAbbrsCheckbox.addActionListener(e -> {
             guiConfig.useModuleAbbreviations = useModuleAbbrsCheckbox.isSelected();
             guiConfigManager.setConfig(guiConfig);
@@ -411,6 +457,18 @@ public class Gui extends JFrame {
 
         VerseFetcher fetcher = null;
         try {
+            // Get the selected language (will be empty string if nothing selected)
+            String userLanguage = (String) languageComboBox.getSelectedItem();
+            if (userLanguage != null) {
+                userLanguage = userLanguage.trim();
+                if (userLanguage.isEmpty()) {
+                    userLanguage = null; // Treat empty as no language specified
+                }
+            }
+
+            // Extract module language
+            String moduleLanguage = BookMapper.extractModuleLanguage(selectedModule.getPath());
+
             BookMapper defaultBookMapper;
             BookMapper moduleBookMapper;
             
@@ -423,11 +481,11 @@ public class Gui extends JFrame {
                 // If checkbox is selected, use the module's own abbreviations as the default
                 defaultBookMapper = moduleBookMapper;
             } else {
-                // Otherwise, use the standard mapping file logic
+                // Otherwise, use the standard mapping file logic with language support
                 if (customMappingPath != null && Files.exists(customMappingPath)) {
-                    defaultBookMapper = new BookMapper(Files.newInputStream(customMappingPath));
+                    defaultBookMapper = new BookMapper(Files.newInputStream(customMappingPath), userLanguage, moduleLanguage);
                 } else {
-                    defaultBookMapper = BookMappingManager.getBookMapper(configManager);
+                    defaultBookMapper = BookMappingManager.getBookMapper(configManager, null, userLanguage, moduleLanguage);
                 }
             }
 
@@ -461,12 +519,25 @@ public class Gui extends JFrame {
                     return (shortNames.size() > 1) ? shortNames.get(1) : shortNames.stream().findFirst().orElse("");
                 }).orElse(defaultShortName);
 
-                guiVerses.add(new GuiVerse(bookNum, defaultFullName, defaultShortName, moduleFullName, moduleShortName, verse.getChapter(), verse.getVerse(), verse.getText(), selectedModule.getName()));
+                guiVerses.add(new GuiVerse(
+                    bookNum,
+                    defaultFullName,
+                    defaultShortName,
+                    moduleFullName,
+                    moduleShortName,
+                    defaultBookMapper.getAllBookNames(bookNum, moduleBookMapper, moduleLanguage, userLanguage),
+                    verse.getChapter(),
+                    verse.getVerse(),
+                    verse.getText(),
+                    selectedModule.getName()
+                ));
             }
 
             if (guiConfig.showRawJson) {
                 Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-                insertDefaultStyledText(doc, gson.toJson(guiVerses));
+                String printJson = gson.toJson(guiVerses);
+                printJson = compactArrayField(printJson, "allBookNames");
+                insertDefaultStyledText(doc, printJson);
             } else {
                 GuiTextFormatter formatter = new GuiTextFormatter(guiConfig);
                 formatter.format(guiVerses, doc);
@@ -569,6 +640,25 @@ public class Gui extends JFrame {
             }
             return this;
         }
+    }
+
+    private static String compactArrayField(String json, String fieldName) {
+        Pattern pattern = Pattern.compile(
+            "\"" + fieldName + "\":\\s*\\[\\s*([^\\]]+?)\\s*\\]",
+            Pattern.DOTALL
+        );
+        Matcher matcher = pattern.matcher(json);
+        StringBuffer result = new StringBuffer();
+        while (matcher.find()) {
+            String arrayContent = matcher.group(1);
+            String compacted = arrayContent
+                .replaceAll("\\s+", " ")
+                .replaceAll(",\\s+", ", ")
+                .trim();
+            matcher.appendReplacement(result, "\"" + fieldName + "\": [" + compacted + "]");
+        }
+        matcher.appendTail(result);
+        return result.toString();
     }
 
     private static class RtfTransferable implements Transferable {
