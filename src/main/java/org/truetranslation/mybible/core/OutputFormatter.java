@@ -4,6 +4,7 @@ import org.truetranslation.mybible.core.model.Book;
 import org.truetranslation.mybible.core.model.Verse;
 import org.truetranslation.mybible.core.model.Reference;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Stack;
@@ -170,11 +171,10 @@ public class OutputFormatter {
 
         String moduleFullName = moduleBookOpt.map(Book::getFullName).orElse(defaultFullName);
         
-        String moduleShortName = moduleBookOpt.map(book ->
-            (userProvidedShortName != null && book.getShortNames().contains(userProvidedShortName))
-                ? userProvidedShortName
-                : book.getShortNames().stream().findFirst().orElse(defaultAbbrName)
-        ).orElse(defaultAbbrName);
+        String moduleShortName = moduleBookOpt.map(book -> {
+            List<String> shortNames = book.getShortNames();
+            return (shortNames.size() > 1) ? shortNames.get(1) : shortNames.stream().findFirst().orElse(defaultAbbrName);
+        }).orElse(defaultAbbrName);
 
         String tempResult = result.replace("%T", "%%TEMP_T%%");
         

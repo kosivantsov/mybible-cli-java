@@ -456,7 +456,10 @@ public class Gui extends JFrame {
 
                 Optional<Book> moduleBookOpt = moduleBookMapper.getBook(bookNum);
                 String moduleFullName = moduleBookOpt.map(Book::getFullName).orElse(defaultFullName);
-                String moduleShortName = moduleBookOpt.map(book -> (userProvidedShortName != null && book.getShortNames().contains(userProvidedShortName)) ? userProvidedShortName : book.getShortNames().stream().findFirst().orElse("")).orElse(defaultShortName);
+                String moduleShortName = moduleBookOpt.map(book -> {
+                    List<String> shortNames = book.getShortNames();
+                    return (shortNames.size() > 1) ? shortNames.get(1) : shortNames.stream().findFirst().orElse("");
+                }).orElse(defaultShortName);
 
                 guiVerses.add(new GuiVerse(bookNum, defaultFullName, defaultShortName, moduleFullName, moduleShortName, verse.getChapter(), verse.getVerse(), verse.getText(), selectedModule.getName()));
             }
