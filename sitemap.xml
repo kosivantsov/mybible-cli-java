@@ -1,19 +1,367 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
     <url>
-         <loc>https://kosivantsov.github.io/mybible-cli-java/</loc>
-         <lastmod>2025-11-07</lastmod>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/_includes/en/cli_name/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/en/cli_name/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/en/cli_name/"/>
     </url>
     <url>
-         <loc>https://kosivantsov.github.io/mybible-cli-java/installation/</loc>
-         <lastmod>2025-11-07</lastmod>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/_includes/en/jar_installation/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/en/jar_installation/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/en/jar_installation/"/>
     </url>
     <url>
-         <loc>https://kosivantsov.github.io/mybible-cli-java/modules/</loc>
-         <lastmod>2025-11-07</lastmod>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/_includes/en/modules_basics/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/en/modules_basics/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/en/modules_basics/"/>
     </url>
     <url>
-         <loc>https://kosivantsov.github.io/mybible-cli-java/quickstart/</loc>
-         <lastmod>2025-11-07</lastmod>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/_includes/en/need_modules/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/en/need_modules/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/en/need_modules/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/_includes/en/set_module_path/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/en/set_module_path/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/en/set_module_path/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/_includes/uk/cli_name/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/uk/cli_name/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/uk/cli_name/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/_includes/uk/jar_installation/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/uk/jar_installation/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/uk/jar_installation/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/_includes/uk/need_modules/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/uk/need_modules/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/uk/need_modules/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/_includes/uk/set_module_path/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/uk/set_module_path/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/uk/set_module_path/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/credits/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/credits/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/credits/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/examples/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/examples/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/examples/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/extensions/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/extensions/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/extensions/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/formatting/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/formatting/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/formatting/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/installation/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/installation/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/installation/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/license/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/license/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/license/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/mapping/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/mapping/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/mapping/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/modules/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/modules/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/modules/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/quickstart/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/quickstart/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/quickstart/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/cli/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/cli/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/cli/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/cli/get/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/cli/get/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/cli/get/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/cli/list/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/cli/list/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/cli/list/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/cli/open/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/cli/open/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/cli/open/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/cli/parse/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/cli/parse/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/cli/parse/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/gui/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/gui/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/gui/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/gui/keyboard-shortcuts/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/gui/keyboard-shortcuts/"/>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/gui/keyboard-shortcuts/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/_includes/en/cli_name/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/en/cli_name/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/en/cli_name/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/_includes/en/jar_installation/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/en/jar_installation/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/en/jar_installation/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/_includes/en/modules_basics/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/en/modules_basics/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/en/modules_basics/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/_includes/en/need_modules/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/en/need_modules/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/en/need_modules/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/_includes/en/set_module_path/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/en/set_module_path/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/en/set_module_path/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/_includes/uk/cli_name/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/uk/cli_name/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/uk/cli_name/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/_includes/uk/jar_installation/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/uk/jar_installation/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/uk/jar_installation/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/_includes/uk/need_modules/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/uk/need_modules/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/uk/need_modules/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/_includes/uk/set_module_path/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/_includes/uk/set_module_path/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/_includes/uk/set_module_path/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/credits/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/credits/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/credits/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/examples/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/examples/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/examples/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/extensions/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/extensions/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/extensions/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/formatting/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/formatting/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/formatting/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/installation/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/installation/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/installation/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/license/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/license/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/license/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/mapping/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/mapping/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/mapping/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/modules/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/modules/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/modules/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/quickstart/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/quickstart/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/quickstart/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/cli/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/cli/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/cli/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/cli/get/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/cli/get/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/cli/get/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/cli/list/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/cli/list/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/cli/list/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/cli/open/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/cli/open/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/cli/open/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/cli/parse/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/cli/parse/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/cli/parse/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/gui/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/gui/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/gui/"/>
+    </url>
+    <url>
+        <loc>https://kosivantsov.github.io/mybible-cli-java/uk/gui/keyboard-shortcuts/</loc>
+        <lastmod>2025-11-12</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="uk" href="https://kosivantsov.github.io/mybible-cli-java/uk/gui/keyboard-shortcuts/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://kosivantsov.github.io/mybible-cli-java/gui/keyboard-shortcuts/"/>
     </url>
 </urlset>
