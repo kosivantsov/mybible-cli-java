@@ -406,8 +406,9 @@ public class Gui extends JFrame {
 
     private void showModuleInfo() {
         ModuleScanner.Module selectedModule = (ModuleScanner.Module) moduleComboBox.getSelectedItem();
+        String moduleInfoMessage = "<html><div style='width: 400px;'>" + selectedModule.getDescription() + "<br/><br/>" + selectedModule.getDetailedInfo() + "</div></html>";
         if (selectedModule != null) {
-            JOptionPane.showMessageDialog(this, MessageFormat.format(bundle.getString("dialog.message.moduleInfo"), selectedModule.getDescription()), bundle.getString("dialog.title.moduleInfo"), JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, moduleInfoMessage, bundle.getString("dialog.title.moduleInfo"), JOptionPane.INFORMATION_MESSAGE);
         }
     }
 

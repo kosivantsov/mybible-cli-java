@@ -33,18 +33,21 @@ public class ModuleScanner {
         private final String language;
         private final String name;
         private final String description;
+        private final String detailedInfo;
         private final Path path;
 
-        public Module(String language, String name, String description, Path path) {
+        public Module(String language, String name, String description, String detailedInfo, Path path) {
             this.language = language;
             this.name = name;
             this.description = description;
+            this.detailedInfo = detailedInfo;
             this.path = path;
         }
 
         public String getLanguage() { return language; }
         public String getName() { return name; }
         public String getDescription() { return description; }
+        public String getDetailedInfo() { return detailedInfo; }
         public Path getPath() { return path; }
     }
 
@@ -92,11 +95,15 @@ public class ModuleScanner {
         
         String language = getInfoField(url, "language").orElse("NA");
         String descriptionRaw = getInfoField(url, "description").orElse("NA");
-        // NEW: Replace newline characters with " | " for cleaner single-line display.
         String description = descriptionRaw.replace("\n", " | ").replace("\r", ""); // Also remove carriage returns
+
+        String detailedInfoRaw = getInfoField(url, "detailed_info").orElse("NA");
+        // String detailedInfo = detailedInfoRaw.replace("\n", " | ").replace("\r", ""); // Also remove carriage returns
+        String detailedInfo = detailedInfoRaw.replace("\r", ""); // Also remove carriage returns
+
         String name = getInfoField(url, "name").orElse(defaultName);
         
-        return Optional.of(new Module(language, name, description, modulePath));
+        return Optional.of(new Module(language, name, description, detailedInfo, modulePath));
     }
 
     // Helper method to get a single field from the module's info table.
