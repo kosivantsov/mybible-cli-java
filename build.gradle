@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'org.truetranslation'
-version = '1.0'
+version = '1.5'
 
 repositories {
     mavenCentral()
@@ -51,7 +51,7 @@ jpackage {
     dependsOn 'shadowJar'
 
     appName = 'mybible-cli'
-    appVersion = '1.0'
+    appVersion = '1.5'
     vendor = 'Kos Ivantsov'
     copyright = 'Copyright © 2025 Kos Ivantsov'
     appDescription = 'MyBible CLI - A command-line and GUI tool for biblical text processing'
@@ -107,7 +107,7 @@ task jpackageWindowsConsole(type: org.panteleyev.jpackage.JPackageTask) {
     dependsOn 'shadowJar'
 
     appName = 'mybible-cli-console'
-    appVersion = '1.0'
+    appVersion = '1.5'
     vendor = 'Kos Ivantsov'
     copyright = 'Copyright © 2025 Kos Ivantsov'
     appDescription = 'MyBible CLI - Portable Windows console version'
