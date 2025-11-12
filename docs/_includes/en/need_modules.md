@@ -1,0 +1,2 @@
+!!! info "You'll Need MyBible Modules"
+    To use this application, you need at least one unpacked MyBible module (`.sqlite3` file). See [MyBible Modules](../modules) for detailed information on finding, downloading, and using modules.

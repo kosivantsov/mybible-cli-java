@@ -3,6 +3,9 @@
 !**/src/**/build/
 .backup/**
 venv-docs/**
+site/**
+mkdocs.yml
+requirements-docs.txt
 
 # Ignore Gradle GUI config
 gradle-app.setting
