@@ -367,6 +367,105 @@ public class GuiModuleManager extends JDialog {
                 dispose();
             }
         });
+
+        // Ctrl/Cmd+1 for Available
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_1, modifierKey), "available");
+        actionMap.put("available", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                availableRadio.doClick();
+            }
+        });
+
+        // Ctrl/Cmd+2 for Installed
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_2, modifierKey), "installed");
+        actionMap.put("installed", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                installedRadio.doClick();
+            }
+        });
+
+        // Ctrl/Cmd+3 for Upgradable
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_3, modifierKey), "upgradable");
+        actionMap.put("upgradable", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                upgradableRadio.doClick();
+            }
+        });
+
+        // Ctrl/Cmd+4 to focus table
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_4, modifierKey), "focusTable");
+        actionMap.put("focusTable", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                moduleTable.requestFocusInWindow();
+            }
+        });
+
+        // Ctrl/Cmd+N to focus Name field
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_N, modifierKey), "focusName");
+        actionMap.put("focusName", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                nameFilter.requestFocusInWindow();
+            }
+        });
+
+        // Ctrl/Cmd+T to focus Type combo
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_T, modifierKey), "focusType");
+        actionMap.put("focusType", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                typeFilter.requestFocusInWindow();
+            }
+        });
+
+        // Ctrl/Cmd+L to focus Language field
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_L, modifierKey), "focusLanguage");
+        actionMap.put("focusLanguage", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                languageFilter.requestFocusInWindow();
+            }
+        });
+
+        // Ctrl/Cmd+D to focus Description field
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_D, modifierKey), "focusDescription");
+        actionMap.put("focusDescription", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                descFilter.requestFocusInWindow();
+            }
+        });
+
+        // Ctrl/Cmd+Shift+I to Clear cache
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_I, modifierKey | KeyEvent.SHIFT_DOWN_MASK), "clearCache");
+        actionMap.put("clearCache", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                purgeButton.doClick();
+            }
+        });
+
+        // Ctrl/Cmd+Shift+O to Reset sources
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_O, modifierKey | KeyEvent.SHIFT_DOWN_MASK), "resetSources");
+        actionMap.put("resetSources", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                reinitButton.doClick();
+            }
+        });
+
+        // Ctrl/Cmd+Shift+P to Reset All
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_P, modifierKey | KeyEvent.SHIFT_DOWN_MASK), "resetAll");
+        actionMap.put("resetAll", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                purgeAllButton.doClick();
+            }
+        });
     }
 
     private void loadModules() {

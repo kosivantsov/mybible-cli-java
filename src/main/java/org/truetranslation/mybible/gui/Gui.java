@@ -277,35 +277,7 @@ public class Gui extends JFrame {
         configureButton.addActionListener(e -> openConfigurationDialog());
         copyButton.addActionListener(e -> copyRichTextToClipboard());
         quitButton.addActionListener(e -> quitApplication());
-        mapBrowseButton.addActionListener(e -> {
-            JFileChooser chooser = new JFileChooser(configManager.getDefaultConfigDir().toFile());
-            chooser.setFileFilter(new FileNameExtensionFilter("JSON Mapping Files", "json"));
-            int result = chooser.showOpenDialog(this);
-            if (result == JFileChooser.APPROVE_OPTION) {
-                Path selectedFile = chooser.getSelectedFile().toPath();
-                try {
-                    // Validate the file first
-                    if (BookMapper.isValidMappingFile(Files.newInputStream(selectedFile))) {
-                        // File is valid
-                        customMappingPath = selectedFile;
-                        mappingFileField.setText(customMappingPath.getFileName().toString());
-                        updateAndDisplayVerseData();
-                    } else {
-                        String errorMessage = bundle.getString("error.gui.invalidMappingFile");
-                        String dialogTitle = bundle.getString("error.gui.invalidMappingTitle");
-                        JOptionPane.showMessageDialog(this, errorMessage, dialogTitle, JOptionPane.ERROR_MESSAGE);
-                        // revert to default
-                        customMappingPath = null;
-                        mappingFileField.setText("default_mapping.json");
-                        updateAndDisplayVerseData();
-                    }
-                } catch (IOException ex) {
-                    String errorMessage = MessageFormat.format(bundle.getString("error.gui.fileReadError"), ex.getMessage());
-                    String dialogTitle = bundle.getString("error.gui.fileErrorTitle");
-                    JOptionPane.showMessageDialog(this, errorMessage, dialogTitle, JOptionPane.ERROR_MESSAGE);
-                }
-            }
-        });
+        mapBrowseButton.addActionListener(e -> openMapBrowser());
     }
 
     private void selectModulePath() {
@@ -357,6 +329,26 @@ public class Gui extends JFrame {
             public void actionPerformed(ActionEvent e) { referenceInputField.requestFocusInWindow(); }
         });
 
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_R, menuMask), "showReferenceAction");
+        actionMap.put("showReferenceAction", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) { updateAndDisplayVerseData(); }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_P, menuMask | KeyEvent.SHIFT_DOWN_MASK), "setModulePathAction");
+        actionMap.put("setModulePathAction", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) { selectModulePath(); }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_B, menuMask | KeyEvent.SHIFT_DOWN_MASK), "mapBrowseAction");
+        actionMap.put("mapBrowseAction", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) { openMapBrowser(); }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_L, menuMask | KeyEvent.SHIFT_DOWN_MASK), "focusLangAction");
+        actionMap.put("focusLangAction", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) { languageComboBox.requestFocusInWindow(); }
+        });
+
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_M, menuMask), "focusModuleAction");
         actionMap.put("focusModuleAction", new AbstractAction() {
             public void actionPerformed(ActionEvent e) { moduleComboBox.requestFocusInWindow(); }
@@ -367,17 +359,25 @@ public class Gui extends JFrame {
             public void actionPerformed(ActionEvent e) { rawJsonCheckbox.doClick(); }
         });
 
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_B, menuMask), "toggleModuleAbbrAction");
+        actionMap.put("toggleModuleAbbrAction", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) { useModuleAbbrsCheckbox.doClick(); }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_I, menuMask), "infoAction");
+        actionMap.put("infoAction", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) { showModuleInfo(); }
+        });
+
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_C, menuMask | KeyEvent.SHIFT_DOWN_MASK), "copyAction");
         actionMap.put("copyAction", new AbstractAction() {
             public void actionPerformed(ActionEvent e) { copyRichTextToClipboard(); }
         });
 
-        if (System.getProperty("os.name").toLowerCase().contains("mac")) {
-            inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_COMMA, menuMask), "configureAction");
-            actionMap.put("configureAction", new AbstractAction() {
-                public void actionPerformed(ActionEvent e) { openConfigurationDialog(); }
-            });
-        }
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_COMMA, menuMask), "configureAction");
+        actionMap.put("configureAction", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) { openConfigurationDialog(); }
+        });
     }
 
     private void copyRichTextToClipboard() {
@@ -404,6 +404,36 @@ public class Gui extends JFrame {
         this.guiConfig = guiConfigManager.getConfig();
         updateAndDisplayVerseData();
     }
+
+    private void openMapBrowser() {
+            JFileChooser chooser = new JFileChooser(configManager.getDefaultConfigDir().toFile());
+            chooser.setFileFilter(new FileNameExtensionFilter("JSON Mapping Files", "json"));
+            int result = chooser.showOpenDialog(this);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                Path selectedFile = chooser.getSelectedFile().toPath();
+                try {
+                    // Validate the file first
+                    if (BookMapper.isValidMappingFile(Files.newInputStream(selectedFile))) {
+                        // File is valid
+                        customMappingPath = selectedFile;
+                        mappingFileField.setText(customMappingPath.getFileName().toString());
+                        updateAndDisplayVerseData();
+                    } else {
+                        String errorMessage = bundle.getString("error.gui.invalidMappingFile");
+                        String dialogTitle = bundle.getString("error.gui.invalidMappingTitle");
+                        JOptionPane.showMessageDialog(this, errorMessage, dialogTitle, JOptionPane.ERROR_MESSAGE);
+                        // revert to default
+                        customMappingPath = null;
+                        mappingFileField.setText("default_mapping.json");
+                        updateAndDisplayVerseData();
+                    }
+                } catch (IOException ex) {
+                    String errorMessage = MessageFormat.format(bundle.getString("error.gui.fileReadError"), ex.getMessage());
+                    String dialogTitle = bundle.getString("error.gui.fileErrorTitle");
+                    JOptionPane.showMessageDialog(this, errorMessage, dialogTitle, JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }
 
     private void quitApplication() {
         dispose();

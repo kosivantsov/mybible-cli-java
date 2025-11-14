@@ -31,6 +31,12 @@ public class ConfigurationDialog extends JDialog {
     private JTextField formatStringField;
     private JComboBox<ThemeInfo> lafComboBox;
     private JButton colorButton;
+    private JButton saveButton;
+    private JButton saveThemeButton;
+    private JButton loadThemeButton;
+    private JButton extensionsButton;
+    private JButton modulesButton;
+    private JButton infoButton;
 
     private static class ThemeInfo {
         final String name;
@@ -98,20 +104,20 @@ public class ConfigurationDialog extends JDialog {
         JPanel bottomPanel = new JPanel(new BorderLayout());
 
         JPanel themeButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton saveThemeButton = new JButton(bundle.getString("button.saveTheme"));
-        JButton loadThemeButton = new JButton(bundle.getString("button.loadTheme"));
+        saveThemeButton = new JButton(bundle.getString("button.saveTheme"));
+        loadThemeButton = new JButton(bundle.getString("button.loadTheme"));
         themeButtonPanel.add(saveThemeButton);
         themeButtonPanel.add(loadThemeButton);
 
         JPanel extensionButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton extensionsButton = new JButton(bundle.getString("button.manageExtensions"));
-        JButton modulesButton = new JButton(bundle.getString("button.manageModules"));
+        extensionsButton = new JButton(bundle.getString("button.manageExtensions"));
+        modulesButton = new JButton(bundle.getString("button.manageModules"));
         extensionButtonPanel.add(extensionsButton);
         extensionButtonPanel.add(modulesButton);
 
         JPanel actionButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton resetButton = new JButton(bundle.getString("button.resetDefaults"));
-        JButton saveButton = new JButton(bundle.getString("button.save"));
+        saveButton = new JButton(bundle.getString("button.save"));
         JButton cancelButton = new JButton(bundle.getString("button.cancel"));
         actionButtonPanel.add(resetButton);
         actionButtonPanel.add(saveButton);
@@ -145,9 +151,80 @@ public class ConfigurationDialog extends JDialog {
             dispose();
         });
 
-        initEscapeToClose();
+        initKeyboardShortcuts();
         pack();
         setLocationRelativeTo(owner);
+    }
+
+    private void initKeyboardShortcuts() {
+        JRootPane rootPane = this.getRootPane();
+        InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ActionMap actionMap = rootPane.getActionMap();
+
+        int modifierKey = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "CLOSE");
+        actionMap.put("CLOSE", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                dispose();
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, modifierKey), "SAVE");
+        actionMap.put("SAVE", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                saveButton.doClick();
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_E, modifierKey), "EXTENSIONS");
+        actionMap.put("EXTENSIONS", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                extensionsButton.doClick();
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_M, modifierKey), "MODULES");
+        actionMap.put("MODULES", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                modulesButton.doClick();
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F, modifierKey), "FOCUS_FORMAT");
+        actionMap.put("FOCUS_FORMAT", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                formatStringField.requestFocusInWindow();
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_L, modifierKey), "FOCUS_LAF");
+        actionMap.put("FOCUS_LAF", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                lafComboBox.requestFocusInWindow();
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_I, modifierKey), "INFO");
+        actionMap.put("INFO", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                infoButton.doClick();
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, modifierKey | KeyEvent.SHIFT_DOWN_MASK), "SAVE_THEME");
+        actionMap.put("SAVE_THEME", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                saveThemeButton.doClick();
+            }
+        });
+
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_L, modifierKey | KeyEvent.SHIFT_DOWN_MASK), "LOAD_THEME");
+        actionMap.put("LOAD_THEME", new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                loadThemeButton.doClick();
+            }
+        });
     }
 
     private void openExtensionManager() {
@@ -252,7 +329,7 @@ public class ConfigurationDialog extends JDialog {
         formatStringField.setToolTipText(tooltipText);
         mainPanel.add(formatStringField, gbc);
         gbc.gridy = 1; gbc.gridx = 2; gbc.weightx = 0;
-        JButton infoButton = new JButton(bundle.getString("button.formatHelp"));
+        infoButton = new JButton(bundle.getString("button.formatHelp"));
         mainPanel.add(infoButton, gbc);
         infoButton.addActionListener(e -> {
             String infoMessage = bundle.getString("dialog.message.formatStringInfo");
@@ -320,19 +397,6 @@ public class ConfigurationDialog extends JDialog {
             restoreOriginalLaf();
         }
         super.dispose();
-    }
-
-    private void initEscapeToClose() {
-        JRootPane rootPane = this.getRootPane();
-        InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
-        ActionMap actionMap = rootPane.getActionMap();
-
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "CLOSE");
-        actionMap.put("CLOSE", new AbstractAction() {
-            public void actionPerformed(ActionEvent e) {
-                dispose();
-            }
-        });
     }
 
     private void ensureAllStylesExist() {
