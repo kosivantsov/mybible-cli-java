@@ -9,15 +9,19 @@ import org.truetranslation.mybible.core.ExternalResourceBundleLoader;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.table.AbstractTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.JTableHeader;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableCellEditor;
 import java.awt.*;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.ResourceBundle;
 
@@ -27,9 +31,10 @@ public class GuiExtensionManager extends JDialog {
     private final ExtensionManager extensionManager;
     private final ResourceBundle bundle;
 
-    private JList<ExtensionListItem> extensionList;
-    private DefaultListModel<ExtensionListItem> listModel;
+    private JTable extensionTable;
+    private ExtensionTableModel tableModel;
     private List<ExtensionInfo> extensions;
+    private boolean sortAscending = true;
 
     public GuiExtensionManager(JFrame parent) {
         super(parent, true);
@@ -53,53 +58,48 @@ public class GuiExtensionManager extends JDialog {
         setTitle(bundle.getString("dialog.extensions.title"));
         setLayout(new BorderLayout(10, 10));
 
-        // Main panel with padding
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        // List panel
-        listModel = new DefaultListModel<>();
-        extensionList = new JList<>(listModel);
-        extensionList.setCellRenderer(new ExtensionListCellRenderer());
-        extensionList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        tableModel = new ExtensionTableModel();
+        extensionTable = new JTable(tableModel);
 
-        // Add keyboard navigation
-        extensionList.addKeyListener(new KeyAdapter() {
-            @Override
-            public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_SPACE) {
-                    toggleSelectedCheckbox();
-                    e.consume();
-                } else if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                    showInfo();
-                    e.consume();
-                }
-            }
-        });
+        extensionTable.setRowHeight(60);
+        extensionTable.setShowGrid(false);
+        extensionTable.setIntercellSpacing(new Dimension(0, 0));
 
-        // Add mouse listener for double-click info
-        extensionList.addMouseListener(new MouseAdapter() {
+        extensionTable.getColumnModel().getColumn(0).setPreferredWidth(30);
+        extensionTable.getColumnModel().getColumn(0).setMaxWidth(30);
+        extensionTable.getColumnModel().getColumn(1).setPreferredWidth(550);
+
+        extensionTable.getColumnModel().getColumn(1).setCellRenderer(new ExtensionInfoRenderer());
+
+        JTableHeader header = extensionTable.getTableHeader();
+        header.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
-                    showInfo();
+                int column = header.columnAtPoint(e.getPoint());
+                if (column == 0) {
+                    toggleSelectAll();
+                } else if (column == 1) {
+                    toggleSort();
                 }
             }
         });
 
-        JScrollPane scrollPane = new JScrollPane(extensionList);
+        header.setDefaultRenderer(new HeaderRenderer());
+
+        JScrollPane scrollPane = new JScrollPane(extensionTable);
         scrollPane.setPreferredSize(new Dimension(580, 350));
 
         mainPanel.add(scrollPane, BorderLayout.CENTER);
 
-        // Info label
         JLabel infoLabel = new JLabel(bundle.getString("dialog.extensions.hint"));
         infoLabel.setBorder(new EmptyBorder(5, 0, 5, 0));
         mainPanel.add(infoLabel, BorderLayout.NORTH);
 
         add(mainPanel, BorderLayout.CENTER);
 
-        // Button panel
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
 
         JButton installButton = new JButton(bundle.getString("button.extensions.install"));
@@ -123,18 +123,7 @@ public class GuiExtensionManager extends JDialog {
     private void loadExtensions() {
         try {
             extensions = extensionManager.listExtensions();
-            listModel.clear();
-
-            if (extensions.isEmpty()) {
-                // Show empty state
-                ExtensionListItem emptyItem = new ExtensionListItem(null, false);
-                listModel.addElement(emptyItem);
-            } else {
-                for (ExtensionInfo ext : extensions) {
-                    ExtensionListItem item = new ExtensionListItem(ext, false);
-                    listModel.addElement(item);
-                }
-            }
+            tableModel.setExtensions(extensions);
         } catch (IOException e) {
             JOptionPane.showMessageDialog(
                 this,
@@ -145,15 +134,40 @@ public class GuiExtensionManager extends JDialog {
         }
     }
 
-    private void toggleSelectedCheckbox() {
-        int index = extensionList.getSelectedIndex();
-        if (index >= 0 && index < listModel.size()) {
-            ExtensionListItem item = listModel.getElementAt(index);
-            if (item.extensionInfo != null) {
-                item.checked = !item.checked;
-                extensionList.repaint();
+    private void toggleSelectAll() {
+        if (extensions.isEmpty()) {
+            return;
+        }
+
+        boolean anyUnchecked = false;
+        for (int i = 0; i < tableModel.getRowCount(); i++) {
+            if (!tableModel.isChecked(i)) {
+                anyUnchecked = true;
+                break;
             }
         }
+
+        for (int i = 0; i < tableModel.getRowCount(); i++) {
+            tableModel.setChecked(i, anyUnchecked);
+        }
+        tableModel.fireTableDataChanged();
+    }
+
+    private void toggleSort() {
+        if (extensions.isEmpty()) {
+            return;
+        }
+
+        sortAscending = !sortAscending;
+        List<ExtensionInfo> sorted = new ArrayList<>(extensions);
+
+        Collections.sort(sorted, (e1, e2) -> {
+            int result = e1.manifest.name.compareToIgnoreCase(e2.manifest.name);
+            return sortAscending ? result : -result;
+        });
+
+        extensions = sorted;
+        tableModel.setExtensions(extensions);
     }
 
     private void installExtension() {
@@ -175,7 +189,7 @@ public class GuiExtensionManager extends JDialog {
                     bundle.getString("dialog.title.success"),
                     JOptionPane.INFORMATION_MESSAGE
                 );
-                loadExtensions(); // Reload the list
+                loadExtensions();
             } catch (ExtensionValidationException e) {
                 JOptionPane.showMessageDialog(
                     this,
@@ -199,25 +213,18 @@ public class GuiExtensionManager extends JDialog {
             return;
         }
 
-        // Collect items to uninstall
         List<ExtensionInfo> toUninstall = new ArrayList<>();
 
-        // First check for checked items
-        for (int i = 0; i < listModel.size(); i++) {
-            ExtensionListItem item = listModel.getElementAt(i);
-            if (item.checked && item.extensionInfo != null) {
-                toUninstall.add(item.extensionInfo);
+        for (int i = 0; i < tableModel.getRowCount(); i++) {
+            if (tableModel.isChecked(i)) {
+                toUninstall.add(extensions.get(i));
             }
         }
 
-        // If nothing is checked, use the selected item
         if (toUninstall.isEmpty()) {
-            int selectedIndex = extensionList.getSelectedIndex();
-            if (selectedIndex >= 0) {
-                ExtensionListItem item = listModel.getElementAt(selectedIndex);
-                if (item.extensionInfo != null) {
-                    toUninstall.add(item.extensionInfo);
-                }
+            int selectedRow = extensionTable.getSelectedRow();
+            if (selectedRow >= 0) {
+                toUninstall.add(extensions.get(selectedRow));
             }
         }
 
@@ -231,7 +238,6 @@ public class GuiExtensionManager extends JDialog {
             return;
         }
 
-        // Confirm uninstallation
         StringBuilder message = new StringBuilder(bundle.getString("msg.extensions.confirmUninstall"));
         message.append("\n\n");
         for (ExtensionInfo ext : toUninstall) {
@@ -251,7 +257,6 @@ public class GuiExtensionManager extends JDialog {
             return;
         }
 
-        // Uninstall extensions
         int successCount = 0;
         int failCount = 0;
         StringBuilder errors = new StringBuilder();
@@ -266,7 +271,6 @@ public class GuiExtensionManager extends JDialog {
             }
         }
 
-        // Show results
         if (failCount == 0) {
             JOptionPane.showMessageDialog(
                 this,
@@ -295,19 +299,13 @@ public class GuiExtensionManager extends JDialog {
             return;
         }
 
-        int selectedIndex = extensionList.getSelectedIndex();
-        if (selectedIndex < 0) {
+        int selectedRow = extensionTable.getSelectedRow();
+        if (selectedRow < 0) {
             return;
         }
 
-        ExtensionListItem item = listModel.getElementAt(selectedIndex);
-        if (item.extensionInfo == null) {
-            return;
-        }
+        ExtensionInfo ext = extensions.get(selectedRow);
 
-        ExtensionInfo ext = item.extensionInfo;
-
-        // Build info message
         StringBuilder info = new StringBuilder();
         info.append("<html><body style='width: 400px;'>");
         info.append("<h3>").append(ext.manifest.name).append("</h3>");
@@ -362,84 +360,131 @@ public class GuiExtensionManager extends JDialog {
         );
     }
 
-    // List item wrapper class.
-    private static class ExtensionListItem {
-        ExtensionInfo extensionInfo;
-        boolean checked;
+    private class ExtensionTableModel extends AbstractTableModel {
+        private List<ExtensionInfo> extensions = new ArrayList<>();
+        private List<Boolean> checkedStates = new ArrayList<>();
 
-        ExtensionListItem(ExtensionInfo extensionInfo, boolean checked) {
-            this.extensionInfo = extensionInfo;
-            this.checked = checked;
-        }
-    }
-
-    // Custom cell renderer for extension list.
-    private class ExtensionListCellRenderer extends JPanel implements ListCellRenderer<ExtensionListItem> {
-        private JCheckBox checkbox;
-        private JLabel nameLabel;
-        private JLabel detailsLabel;
-
-        ExtensionListCellRenderer() {
-            setLayout(new BorderLayout(10, 5));
-            setBorder(new EmptyBorder(5, 10, 5, 10));
-
-            checkbox = new JCheckBox();
-            checkbox.setFocusable(false);
-
-            JPanel textPanel = new JPanel();
-            textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
-            textPanel.setOpaque(false);
-
-            nameLabel = new JLabel();
-            nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 14f));
-
-            detailsLabel = new JLabel();
-            detailsLabel.setFont(detailsLabel.getFont().deriveFont(11f));
-
-            textPanel.add(nameLabel);
-            textPanel.add(Box.createVerticalStrut(3));
-            textPanel.add(detailsLabel);
-
-            add(checkbox, BorderLayout.WEST);
-            add(textPanel, BorderLayout.CENTER);
+        public void setExtensions(List<ExtensionInfo> extensions) {
+            this.extensions = new ArrayList<>(extensions);
+            this.checkedStates = new ArrayList<>();
+            for (int i = 0; i < extensions.size(); i++) {
+                checkedStates.add(false);
+            }
+            fireTableDataChanged();
         }
 
         @Override
-        public Component getListCellRendererComponent(
-                JList<? extends ExtensionListItem> list,
-                ExtensionListItem item,
-                int index,
-                boolean isSelected,
-                boolean cellHasFocus) {
+        public int getRowCount() {
+            return extensions.isEmpty() ? 1 : extensions.size();
+        }
 
-            if (item.extensionInfo == null) {
-                // Empty state
-                checkbox.setVisible(false);
-                nameLabel.setText(bundle.getString("msg.extensions.noExtensions"));
-                detailsLabel.setText("");
-                nameLabel.setForeground(Color.GRAY);
+        @Override
+        public int getColumnCount() {
+            return 2;
+        }
+
+        @Override
+        public String getColumnName(int column) {
+            return column == 0 ? "✓" : bundle.getString("dialog.extensions.extensionsHeader");
+        }
+
+        @Override
+        public Class<?> getColumnClass(int column) {
+            return column == 0 ? Boolean.class : ExtensionInfo.class;
+        }
+
+        @Override
+        public Object getValueAt(int row, int column) {
+            if (extensions.isEmpty()) {
+                return column == 0 ? false : null;
+            }
+            if (column == 0) {
+                return checkedStates.get(row);
             } else {
-                checkbox.setVisible(true);
-                checkbox.setSelected(item.checked);
+                return extensions.get(row);
+            }
+        }
 
-                ExtensionInfo ext = item.extensionInfo;
-                nameLabel.setText(ext.manifest.name + " v" + ext.manifest.version);
+        @Override
+        public void setValueAt(Object value, int row, int column) {
+            if (column == 0 && !extensions.isEmpty() && row < checkedStates.size()) {
+                checkedStates.set(row, (Boolean) value);
+                fireTableCellUpdated(row, column);
+            }
+        }
+
+        @Override
+        public boolean isCellEditable(int row, int column) {
+            return column == 0 && !extensions.isEmpty();
+        }
+
+        public boolean isChecked(int row) {
+            return row < checkedStates.size() ? checkedStates.get(row) : false;
+        }
+
+        public void setChecked(int row, boolean checked) {
+            if (row < checkedStates.size()) {
+                checkedStates.set(row, checked);
+            }
+        }
+    }
+
+    private class ExtensionInfoRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                                                       boolean isSelected, boolean hasFocus,
+                                                       int row, int column) {
+            JPanel panel = new JPanel();
+            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+            panel.setBorder(new EmptyBorder(5, 10, 5, 10));
+
+            if (value == null) {
+                JLabel label = new JLabel(bundle.getString("msg.extensions.noExtensions"));
+                label.setForeground(Color.GRAY);
+                panel.add(label);
+            } else {
+                ExtensionInfo ext = (ExtensionInfo) value;
+
+                JLabel nameLabel = new JLabel(ext.manifest.name + " v" + ext.manifest.version);
+                nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD, 14f));
 
                 String details = ext.manifest.description != null ? ext.manifest.description : "";
                 if (ext.manifest.author != null) {
                     details += " " + bundle.getString("label.extensions.separator") + " " + 
                               bundle.getString("label.extensions.by") + " " + ext.manifest.author;
                 }
-                detailsLabel.setText(details);
+                JLabel detailsLabel = new JLabel(details);
+                detailsLabel.setFont(detailsLabel.getFont().deriveFont(11f));
+                detailsLabel.setForeground(Color.GRAY);
 
-                nameLabel.setForeground(isSelected ? list.getSelectionForeground() : list.getForeground());
-                detailsLabel.setForeground(isSelected ? list.getSelectionForeground() : Color.GRAY);
+                panel.add(nameLabel);
+                panel.add(Box.createVerticalStrut(3));
+                panel.add(detailsLabel);
             }
 
-            setBackground(isSelected ? list.getSelectionBackground() : list.getBackground());
-            setOpaque(true);
+            if (isSelected) {
+                panel.setBackground(table.getSelectionBackground());
+            } else {
+                panel.setBackground(table.getBackground());
+            }
+            panel.setOpaque(true);
 
-            return this;
+            return panel;
+        }
+    }
+
+    private class HeaderRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                                                       boolean isSelected, boolean hasFocus,
+                                                       int row, int column) {
+            Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            if (c instanceof JLabel) {
+                JLabel label = (JLabel) c;
+                label.setHorizontalAlignment(JLabel.CENTER);
+                label.setFont(label.getFont().deriveFont(Font.BOLD, 12f));
+            }
+            return c;
         }
     }
 }

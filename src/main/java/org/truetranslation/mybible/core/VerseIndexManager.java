@@ -65,16 +65,16 @@ public class VerseIndexManager {
         }
         return generateAndCacheIndex(moduleName, modulePath);
     }
-    
+
     private Map<Integer, Integer> generateAndCacheIndex(String moduleName, Path modulePath) {
         Map<Integer, TreeMap<Integer, Integer>> tempIndex = new TreeMap<>();
         String url = "jdbc:sqlite:" + modulePath.toAbsolutePath();
         String sql = "SELECT book_number, chapter, verse FROM verses";
-        
+
         if (this.verbosity > 0) {
             System.out.println(MessageFormat.format(bundle.getString("msg.cache.generating"), moduleName));
         }
-        
+
         try (Connection conn = DriverManager.getConnection(url);
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
@@ -89,7 +89,7 @@ public class VerseIndexManager {
             System.err.println(MessageFormat.format(bundle.getString("error.unexpected"), e.getMessage()));
             return new ConcurrentHashMap<>();
         }
-        
+
         if (this.verbosity > 0) {
             System.out.println(bundle.getString("msg.cache.complete"));
         }

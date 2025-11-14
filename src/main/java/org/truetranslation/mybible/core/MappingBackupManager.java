@@ -41,7 +41,7 @@ public class MappingBackupManager {
                 String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMAT);
                 String backupFilename = timestamp + "_" + MAPPING_FILENAME;
                 Path backupFile = backupDir.resolve(backupFilename);
-                
+
                 Files.copy(mappingFile, backupFile, StandardCopyOption.REPLACE_EXISTING);
             }
 
@@ -67,9 +67,9 @@ public class MappingBackupManager {
         if (!filename.endsWith("_" + MAPPING_FILENAME)) {
             return false;
         }
-        
+
         String timestampPart = filename.substring(0, filename.length() - ("_" + MAPPING_FILENAME).length());
-        
+
         return timestampPart.matches("^\\d{12}$");
     }
 
@@ -88,13 +88,13 @@ public class MappingBackupManager {
 
         byte[] content1 = Files.readAllBytes(file1);
         byte[] content2 = Files.readAllBytes(file2);
-        
+
         return Arrays.equals(content1, content2);
     }
 
     public static java.util.List<Path> getAllBackupFiles(Path configDir) throws IOException {
         Path backupDir = configDir.resolve(BACKUP_FOLDER);
-        
+
         if (!Files.exists(backupDir) || !Files.isDirectory(backupDir)) {
             return java.util.Collections.emptyList();
         }
@@ -111,7 +111,7 @@ public class MappingBackupManager {
 
     public static void cleanupOldBackups(Path configDir, int keepCount) throws IOException {
         java.util.List<Path> allBackups = getAllBackupFiles(configDir);
-        
+
         if (allBackups.size() <= keepCount) {
             return;
         }

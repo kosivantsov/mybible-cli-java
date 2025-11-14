@@ -68,7 +68,7 @@ public class OutputFormatter {
                 .map(line -> line.trim().replaceAll("\\s+", " "))
                 .collect(Collectors.joining("\n"));
     }
-    
+
     private String createAnsiText(String text, boolean includeStrongs, boolean multiline) {
         String tempText = text;
         tempText = tempText.replaceAll("(?i)<f>.*?</f>|(?i)<h>.*?</h>|<br/>|</?t>|~|@|@[^ ]+? ", " ");
@@ -83,7 +83,7 @@ public class OutputFormatter {
         tempText = Arrays.stream(tempText.split("\n"))
                 .map(line -> line.trim().replaceAll("\\s+", " "))
                 .collect(Collectors.joining(multiline ? "\n" : " "));
-                
+
         if (includeStrongs) {
             Pattern mTagPattern = Pattern.compile("(?i)<m>(.*?)</m>");
             Matcher mMatcher = mTagPattern.matcher(tempText);
@@ -162,7 +162,7 @@ public class OutputFormatter {
         Optional<Book> moduleBookOpt = moduleBookMapper.getBook(verse.getBookNumber());
 
         String defaultFullName = defaultBookOpt.map(Book::getFullName).orElse("");
-        
+
         String defaultAbbrName = defaultBookOpt.map(book -> 
             (userProvidedShortName != null && book.getShortNames().contains(userProvidedShortName))
                 ? userProvidedShortName 
@@ -170,31 +170,31 @@ public class OutputFormatter {
         ).orElse("");
 
         String moduleFullName = moduleBookOpt.map(Book::getFullName).orElse(defaultFullName);
-        
+
         String moduleShortName = moduleBookOpt.map(book -> {
             List<String> shortNames = book.getShortNames();
             return (shortNames.size() > 1) ? shortNames.get(1) : shortNames.stream().findFirst().orElse(defaultAbbrName);
         }).orElse(defaultAbbrName);
 
         String tempResult = result.replace("%T", "%%TEMP_T%%");
-        
+
         tempResult = tempResult.replace("%a", defaultAbbrName);
         tempResult = tempResult.replace("%f", defaultFullName);
         tempResult = tempResult.replace("%A", moduleShortName);
         tempResult = tempResult.replace("%F", moduleFullName);
-        
+
         tempResult = tempResult.replace("%b", String.valueOf(verse.getBookNumber()));
         tempResult = tempResult.replace("%c", String.valueOf(verse.getChapter()));
         tempResult = tempResult.replace("%v", String.valueOf(verse.getVerse()));
         tempResult = tempResult.replace("%m", moduleName);
-        
+
         tempResult = tempResult.replace("%z", createSimplePlainText(verse.getText()));
         tempResult = tempResult.replace("%t", createMultiLinePlainText(verse.getText()));
 
         tempResult = tempResult.replace("%X", createAnsiText(verse.getText(), true, true));
         tempResult = tempResult.replace("%Y", createAnsiText(verse.getText(), false, true));
         tempResult = tempResult.replace("%Z", createAnsiText(verse.getText(), false, false));
-        
+
         result = tempResult.replace("%%TEMP_T%%", verse.getText());
 
         return result;

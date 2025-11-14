@@ -57,6 +57,7 @@ import picocli.CommandLine.Spec;
         Main.OpenCommand.class,
         Main.GuiCommand.class,
         Main.ExtCommand.class,
+        Main.ModCommand.class,
         Main.HelpCommand.class
     }
 )
@@ -271,7 +272,7 @@ public class Main implements Callable<Integer> {
                 mainCommand.usage(System.out);
                 System.out.println();
                 System.out.println(bundle.getString("help.header"));
-                List<String> topics = Arrays.asList("get", "list", "parse", "open", "gui", "ext", "help", "format");
+                List<String> topics = Arrays.asList("get", "list", "parse", "open", "gui", "ext", "mod", "help", "format");
                 for (String topicName : topics) {
                     String description = bundle.getString("help.topic." + topicName + ".description");
                     String formattedLine = String.format("  @|bold %-6s|@ %s", topicName, description);
@@ -287,6 +288,335 @@ public class Main implements Callable<Integer> {
                     if (subCommand != null) { subCommand.usage(System.out); } 
                     else { System.err.println(MessageFormat.format(bundle.getString("help.unknown.topic"), topic)); return 1; }
             }
+            return 0;
+        }
+    }
+
+    @Command(name = "mod", resourceBundle = "picocli.mod")
+    static class ModCommand implements Callable<Integer> {
+
+        @Option(names = {"-u", "--update"}, descriptionKey = "update")
+        private boolean update;
+
+        @Option(names = {"-l", "--list"}, descriptionKey = "list")
+        private String listType;
+
+        @Option(names = {"-i", "--install"}, descriptionKey = "install")
+        private String[] installNames;
+
+        @Option(names = {"-r", "--remove"}, descriptionKey = "remove")
+        private String[] removeNames;
+
+        @Option(names = {"-g", "--upgrade"}, descriptionKey = "upgrade")
+        private String[] upgradeNames;
+
+        @Option(names = {"--upgrade-all"}, descriptionKey = "upgradeAll")
+        private boolean upgradeAll;
+
+        @Option(names = {"--info"}, descriptionKey = "info")
+        private String infoName;
+
+        @Option(names = {"--versions"}, descriptionKey = "versions")
+        private String versionsName;
+
+        @Option(names = {"--version"}, descriptionKey = "version")
+        private String specificVersion;
+
+        @Option(names = {"--reinstall"}, descriptionKey = "reinstall")
+        private boolean reinstall;
+
+        @Option(names = {"--lang", "--language"}, descriptionKey = "language")
+        private String language;
+
+        @Option(names = {"--type"}, descriptionKey = "type")
+        private String moduleType;
+
+        @Option(names = {"-n", "--name"}, descriptionKey = "name")
+        private String nameFilter;
+
+        @Option(names = {"-d", "--desc"}, descriptionKey = "desc")
+        private String descFilter;
+
+        @Option(names = {"--reinit"}, descriptionKey = "reinit")
+        private boolean reinit;
+
+        @Option(names = {"--purge"}, descriptionKey = "purge")
+        private boolean purge;
+
+        @Option(names = {"--purge-all"}, descriptionKey = "purgeAll")
+        private boolean purgeAll;
+
+        @Option(names = {"-v", "--verbose"}, descriptionKey = "verbose")
+        private boolean verbose;
+
+        @Option(names = {"--silent"}, descriptionKey = "silent")
+        private boolean silent;
+
+        @Override
+        public Integer call() {
+            ConfigManager configManager = new ConfigManager();
+            int verbosity = configManager.getVerbosity();
+            if (verbose) verbosity = 1;
+            if (silent) verbosity = 0;
+
+            final int finalVerbosity = verbosity;
+
+            try {
+                ModuleManager moduleManager = new ModuleManager(configManager, finalVerbosity);
+
+                if (update) {
+                    moduleManager.updateCache((current, total, message) -> {
+                        if (finalVerbosity > 0) {
+                            System.out.printf("\r[%d/%d] %s", current, total, message);
+                        }
+                    });
+                    if (finalVerbosity > 0) System.out.println();
+                    return 0;
+                }
+
+                if (listType != null) {
+                    return listModules(moduleManager, listType);
+                }
+
+                if (installNames != null && installNames.length > 0) {
+                    return installModules(moduleManager, finalVerbosity);
+                }
+
+                if (removeNames != null && removeNames.length > 0) {
+                    return removeModules(moduleManager);
+                }
+
+                if (upgradeAll || (upgradeNames != null && upgradeNames.length > 0)) {
+                    return upgradeModules(moduleManager, finalVerbosity);
+                }
+
+                if (infoName != null) {
+                    return showModuleInfo(moduleManager);
+                }
+
+                if (versionsName != null) {
+                    return listVersions(moduleManager);
+                }
+
+                if (reinit) {
+                    moduleManager.initializeSources(true);
+                    return 0;
+                }
+
+                if (purge || purgeAll) {
+                    moduleManager.purgeCache(purgeAll);
+                    return 0;
+                }
+
+                System.err.println(bundle.getString("error.mod.noAction"));
+                new CommandLine(this).usage(System.err);
+                return 1;
+
+            } catch (IllegalStateException e) {
+                System.err.println(e.getMessage());
+                return 1;
+            } catch (Exception e) {
+                System.err.println(MessageFormat.format(bundle.getString("error.unexpected"), e.getMessage()));
+                if (finalVerbosity > 0) {
+                    e.printStackTrace();
+                }
+                return 1;
+            }
+        }
+
+        private int listModules(ModuleManager moduleManager, String type) throws IOException {
+            switch (type.toLowerCase()) {
+                case "available":
+                case "a":
+                    List<ModuleManager.CachedModule> available = moduleManager.listAvailableModules(
+                        language, moduleType, nameFilter, descFilter);
+                    if (available.isEmpty()) {
+                        System.out.println(bundle.getString("msg.mod.noAvailable"));
+                    } else {
+                        printFilterInfo();
+                        for (ModuleManager.CachedModule mod : available) {
+                            System.out.printf("%-20s %-5s %-10s %s%n", 
+                                mod.name, 
+                                mod.language != null ? mod.language : "N/A", 
+                                mod.moduleType,
+                                mod.description);
+                        }
+                    }
+                    break;
+
+                case "installed":
+                case "i":
+                    List<ModuleManager.InstalledModule> installed = moduleManager.listInstalledModules(
+                        language, moduleType, nameFilter, descFilter);
+                    if (installed.isEmpty()) {
+                        System.out.println(bundle.getString("msg.mod.noInstalled"));
+                    } else {
+                        printFilterInfo();
+                        for (ModuleManager.InstalledModule mod : installed) {
+                            System.out.printf("%-20s %-5s %-10s %s%n", 
+                                mod.name,
+                                mod.language != null ? mod.language : "N/A",
+                                mod.updateDate,
+                                mod.description);
+                        }
+                    }
+                    break;
+
+                case "upgradable":
+                case "u":
+                    List<ModuleManager.UpgradableModule> upgradable = moduleManager.listUpgradableModules(
+                        language, moduleType, nameFilter, descFilter);
+                    if (upgradable.isEmpty()) {
+                        System.out.println(bundle.getString("msg.mod.noUpgradable"));
+                    } else {
+                        printFilterInfo();
+                        for (ModuleManager.UpgradableModule mod : upgradable) {
+                            System.out.printf("%-20s %s -> %s %s%n",
+                                mod.installed.name,
+                                mod.installed.updateDate,
+                                mod.latest.updateDate,
+                                mod.installed.description);
+                        }
+                    }
+                    break;
+
+                default:
+                    System.err.println(MessageFormat.format(bundle.getString("error.mod.invalidListType"), type));
+                    return 1;
+            }
+            return 0;
+        }
+
+        private void printFilterInfo() {
+            List<String> filters = new ArrayList<>();
+            if (language != null && !language.isEmpty()) {
+                filters.add("Language: " + language);
+            }
+            if (moduleType != null && !moduleType.isEmpty()) {
+                filters.add("Type: " + moduleType);
+            }
+            if (nameFilter != null && !nameFilter.isEmpty()) {
+                filters.add("Name: " + nameFilter);
+            }
+            if (descFilter != null && !descFilter.isEmpty()) {
+                filters.add("Description: " + descFilter);
+            }
+
+            if (!filters.isEmpty()) {
+                System.out.println(bundle.getString("msg.mod.filtersApplied") + " " + String.join(", ", filters));
+            }
+        }
+
+        private int installModules(ModuleManager moduleManager, int verbosity) {
+            int successCount = 0;
+            int failCount = 0;
+
+            for (String name : installNames) {
+                try {
+                    boolean success = moduleManager.installModule(name, specificVersion, reinstall,
+                        (current, total, message) -> {
+                            if (verbosity > 0) {
+                                System.out.printf("\r%s: [%d/%d]", name, current, total);
+                            }
+                        });
+
+                    if (success) {
+                        successCount++;
+                        if (verbosity > 0) System.out.println();
+                    }
+                } catch (IOException e) {
+                    System.err.println(MessageFormat.format(bundle.getString("error.mod.installFailed"), name, e.getMessage()));
+                    failCount++;
+                }
+            }
+
+            if (installNames.length > 1 && verbosity > 0) {
+                System.out.println(MessageFormat.format(bundle.getString("msg.mod.installSummary"), successCount, failCount));
+            }
+
+            return failCount > 0 ? 1 : 0;
+        }
+
+        private int removeModules(ModuleManager moduleManager) {
+            int successCount = 0;
+            int failCount = 0;
+
+            for (String name : removeNames) {
+                try {
+                    if (moduleManager.removeModule(name)) {
+                        successCount++;
+                    }
+                } catch (IOException e) {
+                    System.err.println(MessageFormat.format(bundle.getString("error.mod.removeFailed"), name, e.getMessage()));
+                    failCount++;
+                }
+            }
+
+            if (removeNames.length > 1) {
+                System.out.println(MessageFormat.format(bundle.getString("msg.mod.removeSummary"), successCount, failCount));
+            }
+
+            return failCount > 0 ? 1 : 0;
+        }
+
+        private int upgradeModules(ModuleManager moduleManager, int verbosity) throws IOException {
+            List<String> names = upgradeAll ? null : Arrays.asList(upgradeNames);
+            int upgraded = moduleManager.upgradeModules(names, 
+                (current, total, message) -> {
+                    if (verbosity > 0) {
+                        System.out.printf("\r[%d/%d] %s", current, total, message);
+                    }
+                });
+
+            if (upgraded > 0 && verbosity > 0) {
+                System.out.println();
+                System.out.println(MessageFormat.format(bundle.getString("msg.mod.upgradeComplete"), upgraded));
+            }
+
+            return 0;
+        }
+
+        private int showModuleInfo(ModuleManager moduleManager) throws IOException {
+            try {
+                ModuleManager.ModuleInfo info = moduleManager.getModuleInfo(infoName);
+
+                System.out.println(MessageFormat.format(bundle.getString("msg.mod.info.name"), info.cached.name));
+                System.out.println(MessageFormat.format(bundle.getString("msg.mod.info.language"), 
+                    info.cached.language != null ? info.cached.language : "N/A"));
+                System.out.println(MessageFormat.format(bundle.getString("msg.mod.info.type"), info.cached.moduleType));
+                System.out.println(MessageFormat.format(bundle.getString("msg.mod.info.version"), info.cached.updateDate));
+                System.out.println(MessageFormat.format(bundle.getString("msg.mod.info.description"), info.cached.description));
+
+                if (info.isInstalled) {
+                    System.out.println(MessageFormat.format(bundle.getString("msg.mod.info.installed"), info.installed.updateDate));
+                    if (info.hasUpdate) {
+                        System.out.println(MessageFormat.format(bundle.getString("msg.mod.info.updateAvailable"), info.cached.updateDate));
+                    } else {
+                        System.out.println(bundle.getString("msg.mod.info.upToDate"));
+                    }
+                } else {
+                    System.out.println(bundle.getString("msg.mod.info.notInstalled"));
+                }
+
+                return 0;
+            } catch (IOException e) {
+                System.err.println(e.getMessage());
+                return 1;
+            }
+        }
+
+        private int listVersions(ModuleManager moduleManager) throws IOException {
+            List<String> versions = moduleManager.listModuleVersions(versionsName);
+
+            if (versions.isEmpty()) {
+                System.out.println(MessageFormat.format(bundle.getString("msg.mod.noVersions"), versionsName));
+            } else {
+                System.out.println(MessageFormat.format(bundle.getString("msg.mod.versionsFor"), versionsName));
+                for (String version : versions) {
+                    System.out.println("  " + version);
+                }
+            }
+
             return 0;
         }
     }

@@ -20,7 +20,7 @@ public class VerseFetcher {
         String url = "jdbc:sqlite:" + modulePath.toAbsolutePath();
         this.connection = DriverManager.getConnection(url);
     }
-    
+
     public List<Verse> fetch(List<Range> ranges) throws SQLException {
         List<Verse> results = new ArrayList<>();
         for (Range range : ranges) {
@@ -53,7 +53,7 @@ public class VerseFetcher {
                      "AND (chapter > ? OR (chapter = ? AND verse >= ?)) " +
                      "AND (chapter < ? OR (chapter = ? AND verse <= ?)) " +
                      "ORDER BY book_number, chapter, verse";
-        
+
         try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
             pstmt.setInt(1, book);
             pstmt.setInt(2, startChapter != null ? startChapter : 0);

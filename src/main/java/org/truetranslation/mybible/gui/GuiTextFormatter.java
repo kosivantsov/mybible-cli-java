@@ -52,14 +52,14 @@ public class GuiTextFormatter {
                             case "c": appendSimpleText(doc, String.valueOf(verse.chapter), "chapter"); break;
                             case "v": appendSimpleText(doc, String.valueOf(verse.verse), "verse"); break;
                             case "m": appendSimpleText(doc, verse.moduleName, "moduleName"); break;
-                            
+
                             case "T": appendSimpleText(doc, verse.rawVerseText, "infoText"); break;
                             case "t": appendPlainText(doc, verse.rawVerseText, true); break;
                             case "z": appendPlainText(doc, verse.rawVerseText, false); break;
                             case "X": appendStyledText(doc, verse.rawVerseText, true, true); break;
                             case "Y": appendStyledText(doc, verse.rawVerseText, false, true); break;
                             case "Z": appendStyledText(doc, verse.rawVerseText, false, false); break;
-                                
+
                             default:
                                 appendSimpleText(doc, "%" + specifier, "defaultText");
                                 break;
@@ -79,13 +79,13 @@ public class GuiTextFormatter {
             e.printStackTrace();
         }
     }
-    
+
     private void appendSimpleText(StyledDocument doc, String text, String styleKey) throws BadLocationException {
         if (text == null || text.isEmpty()) return;
         Style style = createStyleFromConfig(styleKey);
         doc.insertString(doc.getLength(), text, style);
     }
-    
+
     private void appendPlainText(StyledDocument doc, String rawVerseText, boolean multiline) throws BadLocationException {
         String temp = rawVerseText
             .replaceAll("\\[\\d+\\]", "")
@@ -95,7 +95,7 @@ public class GuiTextFormatter {
             .replaceAll("(?i)<n>.*?</n>", " ")
             .replaceAll("(?i)<h>.*?</h>", " ")
             .replaceAll("<br/>", " ");
-        
+
         if (multiline) {
             if (temp.trim().startsWith("<pb/>")) {
                 temp = temp.replaceFirst("<pb/>", "").trim();
@@ -127,7 +127,7 @@ public class GuiTextFormatter {
         } else {
             tempText = tempText.replace("<pb/>", " ");
         }
-        
+
         tempText = Arrays.stream(tempText.split("\n"))
                 .map(line -> line.trim().replaceAll("\\s+", " "))
                 .collect(Collectors.joining(multiline ? "\n" : " "));
@@ -140,7 +140,7 @@ public class GuiTextFormatter {
 
         Pattern pattern = Pattern.compile("(?i)(</?(?:J|E|I|N|S|M)>)|([^<]+)");
         Matcher matcher = pattern.matcher(tempText);
-        
+
         Stack<Style> styleStack = new Stack<>();
         // Use default 'verseText' as the base style
         styleStack.push(createStyleFromConfig("verseText"));
@@ -166,7 +166,7 @@ public class GuiTextFormatter {
                 } else {
                     Style current = styleStack.peek();
                     Style newStyle = doc.addStyle(null, current);
-                    
+
                     switch (tagName) {
                         case "J": newStyle = createStyleFromConfig("wordsOfJesus"); break;
                         case "E": StyleConstants.setBold(newStyle, true); break;
@@ -207,14 +207,14 @@ public class GuiTextFormatter {
         StyleConstants.setFontSize(style, ts.fontSize);
         StyleConstants.setBold(style, (ts.fontStyle & Font.BOLD) != 0);
         StyleConstants.setItalic(style, (ts.fontStyle & Font.ITALIC) != 0);
-        
+
         if (ts.color != null) {
             StyleConstants.setForeground(style, ts.color);
         }
-        
+
         StyleConstants.setSuperscript(style, ts.superscript);
         StyleConstants.setSubscript(style, ts.subscript);
-        
+
         return style;
     }
 }

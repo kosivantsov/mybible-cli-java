@@ -89,7 +89,7 @@ public class Gui extends JFrame {
     private JTextField mappingFileField;
     private JComboBox<String> languageComboBox;
     private JCheckBox useModuleAbbrsCheckbox;
-    
+
     private final ConfigManager configManager;
     private final ModuleScanner moduleScanner;
     private final Runnable onWindowClosed;
@@ -110,9 +110,9 @@ public class Gui extends JFrame {
         this.guiConfig = guiConfigManager.getConfig();
 
         setTitle(bundle.getString("window.title"));
-        
+
         loadAppIcon();
-        
+
         initUI();
         initKeyboardShortcuts();
         loadModules();
@@ -200,7 +200,7 @@ public class Gui extends JFrame {
         gbc.gridx = 2;
         JButton infoButton = new JButton(bundle.getString("button.info"));
         inputPanel.add(infoButton, gbc);
-        
+
         gbc.gridy = 2; gbc.gridx = 0;
         inputPanel.add(new JLabel(bundle.getString("label.modulePath")), gbc);
 
@@ -208,7 +208,7 @@ public class Gui extends JFrame {
         modulePathField = new JTextField(configManager.getModulesPath());
         modulePathField.setEditable(false);
         inputPanel.add(modulePathField, gbc);
-        
+
         gbc.gridx = 2;
         JButton setModulePathButton = new JButton(bundle.getString("button.modulePathSet"));
         inputPanel.add(setModulePathButton, gbc);
@@ -217,7 +217,7 @@ public class Gui extends JFrame {
         rawJsonCheckbox = new JCheckBox(bundle.getString("checkbox.rawJson"));
         rawJsonCheckbox.setSelected(guiConfig.showRawJson);
         inputPanel.add(rawJsonCheckbox, gbc);
-        
+
         gbc.gridy = 4; gbc.gridx = 0; gbc.gridwidth = 1; gbc.weightx = 0;
         inputPanel.add(new JLabel(bundle.getString("label.mappingFile")), gbc);
         gbc.gridx = 1; gbc.weightx = 1.0;
@@ -335,6 +335,12 @@ public class Gui extends JFrame {
         }
     }
 
+    public void updateModulePath(String newPath) {
+        configManager.setModulesPath(newPath);
+        modulePathField.setText(newPath);
+        loadModules();
+    }
+
     private void initKeyboardShortcuts() {
         JRootPane rootPane = getRootPane();
         InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
@@ -373,11 +379,11 @@ public class Gui extends JFrame {
             });
         }
     }
-    
+
     private void copyRichTextToClipboard() {
         StyledDocument doc = textDisplayPane.getStyledDocument();
         String plainText = textDisplayPane.getText();
-        
+
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             RTFEditorKit rtfKit = new RTFEditorKit();
             rtfKit.write(out, doc, 0, doc.getLength());
@@ -472,7 +478,7 @@ public class Gui extends JFrame {
 
             BookMapper defaultBookMapper;
             BookMapper moduleBookMapper;
-            
+
             // Conditionally select the default mapping based on the checkbox
             AbbreviationManager abbrManager = new AbbreviationManager(configManager, 0);
             Path abbrFile = abbrManager.ensureAbbreviationFile(selectedModule.getName(), selectedModule.getPath());
@@ -499,10 +505,10 @@ public class Gui extends JFrame {
                 insertDefaultStyledText(doc, MessageFormat.format(bundle.getString("dialog.message.invalidReference"), reference));
                 return;
             }
-            
+
             fetcher = new VerseFetcher(selectedModule.getPath());
             List<Verse> verses = fetcher.fetch(new ArrayList<>(ranges));
-            
+
             List<GuiVerse> guiVerses = new ArrayList<>();
             for (Verse verse : verses) {
                 Reference ref = findContainingReference(ranges, verse);
@@ -575,7 +581,7 @@ public class Gui extends JFrame {
                 Color fg = infoStyle.color != null ? infoStyle.color : UIManager.getColor("TextPane.foreground");
                 StyleConstants.setForeground(attrs, fg);
             }
-            
+
             doc.insertString(0, text, attrs);
         } catch (BadLocationException e) {
             e.printStackTrace();
@@ -594,25 +600,25 @@ public class Gui extends JFrame {
     }
 
     private static class ModuleRenderer extends DefaultListCellRenderer {
-    
+
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
             super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-    
+
             if (value instanceof ModuleScanner.Module) {
                 ModuleScanner.Module module = (ModuleScanner.Module) value;
-    
+
                 if (index == -1) {
                     setText(module.getName());
                     return this;
                 }
-    
+
                 JPanel panel = new JPanel(new GridBagLayout());
                 GridBagConstraints gbc = new GridBagConstraints();
                 panel.setBackground(isSelected ? list.getSelectionBackground() : list.getBackground());
-                
+
                 Color foreground = isSelected ? list.getSelectionForeground() : list.getForeground();
-    
+
                 JLabel langLabel = new JLabel(module.getLanguage());
                 langLabel.setForeground(foreground);
                 langLabel.setPreferredSize(new Dimension(35, langLabel.getPreferredSize().height));
@@ -622,7 +628,7 @@ public class Gui extends JFrame {
                 gbc.insets = new Insets(1, 2, 1, 2);
                 gbc.anchor = GridBagConstraints.WEST;
                 panel.add(langLabel, gbc);
-    
+
                 JLabel nameLabel = new JLabel(module.getName());
                 nameLabel.setForeground(foreground);
                 nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD));
@@ -630,13 +636,13 @@ public class Gui extends JFrame {
                 gbc.gridx = 1;
                 gbc.weightx = 0;
                 panel.add(nameLabel, gbc);
-    
+
                 JLabel descLabel = new JLabel(module.getDescription());
                 descLabel.setForeground(foreground);
                 gbc.gridx = 2;
                 gbc.weightx = 1.0;
                 panel.add(descLabel, gbc);
-    
+
                 return panel;
             }
             return this;

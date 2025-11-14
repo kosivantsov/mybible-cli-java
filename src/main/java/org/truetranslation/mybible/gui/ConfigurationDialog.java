@@ -40,21 +40,37 @@ public class ConfigurationDialog extends JDialog {
     }
 
     private static final List<ThemeInfo> THEMES = Arrays.asList(
-            new ThemeInfo("Arc Light", FlatArcIJTheme.class.getName()),
             new ThemeInfo("Arc Dark", FlatArcDarkIJTheme.class.getName()),
-            new ThemeInfo("macOS Light", FlatMacLightLaf.class.getName()),
-            new ThemeInfo("macOS Dark", FlatMacDarkLaf.class.getName()),
+            new ThemeInfo("Arc Light", FlatArcIJTheme.class.getName()),
+            new ThemeInfo("Arc Orange Dark", FlatArcDarkOrangeIJTheme.class.getName()),
+            new ThemeInfo("Arc Orange Light", FlatArcOrangeIJTheme.class.getName()),
             new ThemeInfo("Carbon", FlatCarbonIJTheme.class.getName()),
             new ThemeInfo("Cobalt 2", FlatCobalt2IJTheme.class.getName()),
             new ThemeInfo("Cyan Light", FlatCyanLightIJTheme.class.getName()),
+            new ThemeInfo("Dark Flat", FlatDarkFlatIJTheme.class.getName()),
+            new ThemeInfo("Dark Purple", FlatDarkPurpleIJTheme.class.getName()),
             new ThemeInfo("Dracula", FlatDraculaIJTheme.class.getName()),
             new ThemeInfo("Gradianto Deep Ocean", FlatGradiantoDeepOceanIJTheme.class.getName()),
+            new ThemeInfo("Gradianto Midnight Blue", FlatGradiantoMidnightBlueIJTheme.class.getName()),
+            new ThemeInfo("Gradianto Nature Green", FlatGradiantoNatureGreenIJTheme.class.getName()),
+            new ThemeInfo("Gray", FlatGrayIJTheme.class.getName()),
             new ThemeInfo("Gruvbox Dark Hard", FlatGruvboxDarkHardIJTheme.class.getName()),
+            new ThemeInfo("Gruvbox Dark Medium", FlatGruvboxDarkMediumIJTheme.class.getName()),
+            new ThemeInfo("Gruvbox Dark Soft", FlatGruvboxDarkSoftIJTheme.class.getName()),
+            new ThemeInfo("Hiberbee Dark", FlatHiberbeeDarkIJTheme.class.getName()),
+            new ThemeInfo("High Contrast", FlatHighContrastIJTheme.class.getName()),
+            new ThemeInfo("Light Flat", FlatLightFlatIJTheme.class.getName()),
+            new ThemeInfo("macOS Dark", FlatMacDarkLaf.class.getName()),
+            new ThemeInfo("macOS Light", FlatMacLightLaf.class.getName()),
             new ThemeInfo("Monocai", FlatMonocaiIJTheme.class.getName()),
+            new ThemeInfo("Monokai Pro", FlatMonokaiProIJTheme.class.getName()),
             new ThemeInfo("Nord", FlatNordIJTheme.class.getName()),
             new ThemeInfo("One Dark", FlatOneDarkIJTheme.class.getName()),
+            new ThemeInfo("Solarized Dark", FlatSolarizedDarkIJTheme.class.getName()),
             new ThemeInfo("Solarized Light", FlatSolarizedLightIJTheme.class.getName()),
-            new ThemeInfo("Solarized Dark", FlatSolarizedDarkIJTheme.class.getName())
+            new ThemeInfo("Spacegray", FlatSpacegrayIJTheme.class.getName()),
+            new ThemeInfo("Vuesion", FlatVuesionIJTheme.class.getName()),
+            new ThemeInfo("Xcode Dark", FlatXcodeDarkIJTheme.class.getName())
     );
 
     private static ConfigManager coreConfigManager = new ConfigManager();
@@ -84,10 +100,14 @@ public class ConfigurationDialog extends JDialog {
         JPanel themeButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton saveThemeButton = new JButton(bundle.getString("button.saveTheme"));
         JButton loadThemeButton = new JButton(bundle.getString("button.loadTheme"));
-        JButton extensionsButton = new JButton(bundle.getString("button.manageExtensions"));
         themeButtonPanel.add(saveThemeButton);
         themeButtonPanel.add(loadThemeButton);
-        themeButtonPanel.add(extensionsButton);
+
+        JPanel extensionButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton extensionsButton = new JButton(bundle.getString("button.manageExtensions"));
+        JButton modulesButton = new JButton(bundle.getString("button.manageModules"));
+        extensionButtonPanel.add(extensionsButton);
+        extensionButtonPanel.add(modulesButton);
 
         JPanel actionButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton resetButton = new JButton(bundle.getString("button.resetDefaults"));
@@ -97,23 +117,27 @@ public class ConfigurationDialog extends JDialog {
         actionButtonPanel.add(saveButton);
         actionButtonPanel.add(cancelButton);
 
-        bottomPanel.add(themeButtonPanel, BorderLayout.NORTH);
-        bottomPanel.add(actionButtonPanel, BorderLayout.CENTER);
+        JPanel combinedBottomPanel = new JPanel();
+        combinedBottomPanel.setLayout(new BoxLayout(combinedBottomPanel, BoxLayout.Y_AXIS));
+        combinedBottomPanel.add(themeButtonPanel);
+        combinedBottomPanel.add(extensionButtonPanel);
+        combinedBottomPanel.add(actionButtonPanel);
+
+        bottomPanel.add(combinedBottomPanel, BorderLayout.CENTER);
 
         add(bottomPanel, BorderLayout.SOUTH);
 
         saveThemeButton.addActionListener(e -> saveCurrentTheme());
         loadThemeButton.addActionListener(e -> loadTheme());
         extensionsButton.addActionListener(e -> openExtensionManager());
+        modulesButton.addActionListener(e -> openModuleManager());
         resetButton.addActionListener(e -> resetToDefaults());
         cancelButton.addActionListener(e -> dispose());
         saveButton.addActionListener(e -> {
-            // Update the config object from the UI fields
             config.formatString = formatStringField.getText();
             config.lookAndFeelClassName = ((ThemeInfo) lafComboBox.getSelectedItem()).className;
             config.textAreaBackground = chosenBackgroundColor;
             ensureAllStylesExist();
-            // Set the new config in the manager and then save it
             configManager.setConfig(this.config);
             configManager.saveConfig();
             saved = true;
@@ -135,6 +159,11 @@ public class ConfigurationDialog extends JDialog {
 
         SwingUtilities.updateComponentTreeUI(this);
         repaint();
+    }
+
+    private void openModuleManager() {
+        GuiModuleManager moduleManager = new GuiModuleManager(owner, coreConfigManager, configManager);
+        moduleManager.setVisible(true);
     }
 
     private void resetToDefaults() {
@@ -191,17 +220,13 @@ public class ConfigurationDialog extends JDialog {
     }
 
     private void updateUiFromConfig() {
-        // Update format string
         formatStringField.setText(this.config.formatString);
-        // Update background color
         chosenBackgroundColor = this.config.textAreaBackground;
         colorButton.setBackground(chosenBackgroundColor != null ? chosenBackgroundColor : UIManager.getColor("Button.background"));
-        // Update Look and Feel dropdown
         THEMES.stream()
               .filter(t -> t.className.equals(this.config.lookAndFeelClassName))
               .findFirst()
               .ifPresent(lafComboBox::setSelectedItem);
-        // Re-create the main panel to update all style rows
         Container contentPane = getContentPane();
         Component oldCenter = ((BorderLayout)contentPane.getLayout()).getLayoutComponent(BorderLayout.CENTER);
             if (oldCenter != null) {
@@ -209,7 +234,6 @@ public class ConfigurationDialog extends JDialog {
             }
         JPanel newMainPanel = createMainPanel();
         add(newMainPanel, BorderLayout.CENTER);
-        // Refresh the layout
         revalidate();
         repaint();
         pack();
@@ -232,7 +256,7 @@ public class ConfigurationDialog extends JDialog {
         mainPanel.add(infoButton, gbc);
         infoButton.addActionListener(e -> {
             String infoMessage = bundle.getString("dialog.message.formatStringInfo");
-            
+
             JOptionPane.showMessageDialog(
                 this,
                 infoMessage,
@@ -286,7 +310,7 @@ public class ConfigurationDialog extends JDialog {
                 SwingUtilities.invokeLater(() -> previewLookAndFeel(selectedTheme.className));
             }
         });
-        
+
         return mainPanel;
     }
 
@@ -317,7 +341,7 @@ public class ConfigurationDialog extends JDialog {
             config.styles.putIfAbsent(key, defaultConfig.styles.get(key));
         }
     }
-    
+
     private void addStyleRow(JPanel panel, int y, String labelText, String styleKey) {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(2, 5, 2, 5); gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -325,7 +349,7 @@ public class ConfigurationDialog extends JDialog {
 
         TextStyle style = config.styles.get(styleKey);
         String styleDescription = (style != null) ? String.format("%s, %dpt", style.fontName, style.fontSize) : "Undefined";
-        
+
         gbc.gridx = 1;
         JLabel styleDisplay = new JLabel(styleDescription);
         panel.add(styleDisplay, gbc);
@@ -354,7 +378,7 @@ public class ConfigurationDialog extends JDialog {
         try {
             UIManager.setLookAndFeel(config.lookAndFeelClassName);
             SwingUtilities.updateComponentTreeUI(owner);
-            
+
             JTextPane textPane = findTextPane(owner);
             if (textPane != null) {
                 textPane.setBackground(config.textAreaBackground);
@@ -418,7 +442,7 @@ public class ConfigurationDialog extends JDialog {
                 currentConfig.lookAndFeelClassName = ((ThemeInfo) lafComboBox.getSelectedItem()).className;
                 currentConfig.textAreaBackground = chosenBackgroundColor;
                 currentConfig.styles = this.config.styles;
-                
+
                 GuiThemeManager themeManager = new GuiThemeManager();
                 themeManager.saveTheme(themeName, currentConfig);
             } catch (IOException ex) {

@@ -25,7 +25,7 @@ public class StyleEditorDialog extends JDialog {
 
         initComponents(bundle, previewBackground);
         updatePreview();
-        
+
         pack();
         setLocationRelativeTo(owner);
     }
@@ -150,11 +150,11 @@ public class StyleEditorDialog extends JDialog {
         StyleConstants.setFontSize(attrs, editedStyle.fontSize);
         StyleConstants.setBold(attrs, (editedStyle.fontStyle & Font.BOLD) != 0);
         StyleConstants.setItalic(attrs, (editedStyle.fontStyle & Font.ITALIC) != 0);
-        
+
         // Use the pane's foreground color as a fallback if the style's color is null.
         Color fg = (editedStyle.color != null) ? editedStyle.color : previewPane.getForeground();
         StyleConstants.setForeground(attrs, fg);
-        
+
         StyleConstants.setSuperscript(attrs, editedStyle.superscript);
         StyleConstants.setSubscript(attrs, editedStyle.subscript);
 

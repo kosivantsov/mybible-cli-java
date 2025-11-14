@@ -17,12 +17,10 @@ public class GuiConfigManager {
 
     public GuiConfigManager() {
         this.configFilePath = getConfigPath();
-        
         this.gson = new GsonBuilder()
                 .registerTypeAdapter(Color.class, new ColorTypeAdapter())
                 .setPrettyPrinting()
                 .create();
-        
         loadConfig();
     }
 
@@ -68,7 +66,7 @@ public class GuiConfigManager {
     public GuiConfig getConfig() {
         return config;
     }
-    
+
     public void setConfig(GuiConfig newConfig) {
         this.config = newConfig;
     }

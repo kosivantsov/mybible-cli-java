@@ -27,7 +27,6 @@ public class ModuleScanner {
             "referencedata", "subheadings"
     );
 
-
     // A simple data class representing a MyBible module's metadata.
     public static class Module {
         private final String language;
@@ -62,7 +61,7 @@ public class ModuleScanner {
         if (modulesDir == null || !Files.isDirectory(modulesDir)) {
             return modules;
         }
-        
+
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(modulesDir)) {
             for (Path entry : stream) {
                 String fileNameLower = entry.getFileName().toString().toLowerCase();
@@ -92,7 +91,7 @@ public class ModuleScanner {
     private Optional<Module> getModuleInfo(Path modulePath) {
         String url = "jdbc:sqlite:" + modulePath.toAbsolutePath().toString();
         String defaultName = modulePath.getFileName().toString().replaceAll("(?i)\\.sqlite3$", "");
-        
+
         String language = getInfoField(url, "language").orElse("NA");
         String descriptionRaw = getInfoField(url, "description").orElse("NA");
         String description = descriptionRaw.replace("\n", " | ").replace("\r", ""); // Also remove carriage returns
@@ -102,7 +101,7 @@ public class ModuleScanner {
         String detailedInfo = detailedInfoRaw.replace("\r", ""); // Also remove carriage returns
 
         String name = getInfoField(url, "name").orElse(defaultName);
-        
+
         return Optional.of(new Module(language, name, description, detailedInfo, modulePath));
     }
 
@@ -113,7 +112,7 @@ public class ModuleScanner {
             String sql = "SELECT value FROM info WHERE " + keyColumn + " = ?";
             try (Connection conn = DriverManager.getConnection(url);
                  PreparedStatement pstmt = conn.prepareStatement(sql)) {
-                
+
                 pstmt.setString(1, fieldName);
                 try (ResultSet rs = pstmt.executeQuery()) {
                     if (rs.next()) {
