@@ -9,10 +9,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,13 +36,24 @@ public class ExtensionManager {
     private final Path resourcesDir;
     private final Path i18nDir;
     private final Path guiThemesDir;
+    private final Path sourcesDir;
+    private final Path cacheDir;
     private final ResourceBundle bundle;
     private final int verbosity;
 
     private static final String MANIFEST_FILENAME = "manifest.json";
     private static final Set<String> PROTECTED_FILES = Set.of("default_mapping.json");
+    private static final String DEFAULT_REGISTRY_URL = "https://raw.githubusercontent.com/kosivantsov/mybible-cli-extensions/main/registry.json";
+    private static final String DEFAULT_REGISTRY_NAME = "kosivantsov.extregistry";
 
-    public ExtensionManager(ConfigManager configManager, int verbosity) {
+    private static final Map<String, Set<String>> ALLOWED_FILE_TYPES = Map.of(
+        "theme", Set.of("themes"),
+        "mapping", Set.of("mappings"),
+        "localization", Set.of("resources"),
+        "bundle", Set.of("mappings", "resources", "themes")
+    );
+
+    public ExtensionManager(ConfigManager configManager, int verbosity) throws IOException {
         this.configManager = configManager;
         this.verbosity = verbosity;
 
@@ -48,13 +62,119 @@ public class ExtensionManager {
         this.resourcesDir = configDir.resolve("resources");
         this.i18nDir = resourcesDir.resolve("i18n");
         this.guiThemesDir = configDir.resolve("gui_themes");
+        this.sourcesDir = configDir.resolve("sources");
+        this.cacheDir = configDir.resolve(".cache").resolve("extensions");
 
         ExternalResourceBundleLoader loader = new ExternalResourceBundleLoader(configDir);
         this.bundle = loader.getBundle("i18n.messages");
+
+        initializeDefaultRegistry();
     }
 
-    // List all installed extensions.
-    public List<ExtensionInfo> listExtensions() throws IOException {
+    private void initializeDefaultRegistry() throws IOException {
+        Files.createDirectories(sourcesDir);
+        Path defaultRegistry = sourcesDir.resolve(DEFAULT_REGISTRY_NAME);
+        
+        if (!Files.exists(defaultRegistry)) {
+            Files.writeString(defaultRegistry, DEFAULT_REGISTRY_URL, StandardCharsets.UTF_8);
+            if (verbosity > 0) {
+                System.out.println(bundle.getString("msg.extensionmgr.registryInitialized"));
+            }
+        }
+    }
+
+    public void updateRegistries() throws IOException {
+        Files.createDirectories(cacheDir);
+        
+        if (!Files.exists(sourcesDir)) {
+            throw new IOException(bundle.getString("error.extensionmgr.noSources"));
+        }
+
+        try (Stream<Path> files = Files.list(sourcesDir)) {
+            List<Path> registries = files
+                .filter(p -> p.toString().endsWith(".extregistry"))
+                .collect(Collectors.toList());
+
+            for (Path registryFile : registries) {
+                String url = Files.readString(registryFile, StandardCharsets.UTF_8).trim();
+                String registryName = registryFile.getFileName().toString().replace(".extregistry", "");
+                
+                if (verbosity > 0) {
+                    System.out.println(MessageFormat.format(
+                        bundle.getString("msg.extensionmgr.updatingRegistry"), registryName));
+                }
+                
+                downloadRegistry(url, registryName);
+            }
+        }
+
+        if (verbosity > 0) {
+            System.out.println(bundle.getString("msg.extensionmgr.registryUpdateComplete"));
+        }
+    }
+
+    private void downloadRegistry(String urlString, String registryName) throws IOException {
+        URL url = new URL(urlString);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(10000);
+        conn.setReadTimeout(10000);
+
+        try (InputStream in = conn.getInputStream()) {
+            Path cachePath = cacheDir.resolve(registryName + ".json");
+            Files.copy(in, cachePath, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            conn.disconnect();
+        }
+    }
+
+    public List<RegistryExtension> listAvailableExtensions(String typeFilter, String nameFilter) throws IOException {
+        List<RegistryExtension> allExtensions = new ArrayList<>();
+        
+        if (!Files.exists(cacheDir)) {
+            throw new IOException(bundle.getString("error.extensionmgr.noCachedRegistries"));
+        }
+
+        try (Stream<Path> files = Files.list(cacheDir)) {
+            List<Path> cacheFiles = files
+                .filter(p -> p.toString().endsWith(".json"))
+                .collect(Collectors.toList());
+
+            for (Path cacheFile : cacheFiles) {
+                try {
+                    String json = Files.readString(cacheFile, StandardCharsets.UTF_8);
+                    ExtensionRegistry registry = new Gson().fromJson(json, ExtensionRegistry.class);
+                    
+                    if (registry.extensions != null) {
+                        allExtensions.addAll(registry.extensions);
+                    }
+                } catch (Exception e) {
+                    if (verbosity > 0) {
+                        System.err.println(MessageFormat.format(
+                            bundle.getString("error.extensionmgr.registryReadFailed"), e.getMessage()));
+                    }
+                }
+            }
+        }
+
+        Stream<RegistryExtension> stream = allExtensions.stream();
+        
+        if (typeFilter != null && !typeFilter.isEmpty()) {
+            stream = stream.filter(ext -> ext.type != null && ext.type.equalsIgnoreCase(typeFilter));
+        }
+        
+        if (nameFilter != null && !nameFilter.isEmpty()) {
+            String lowerFilter = nameFilter.toLowerCase();
+            stream = stream.filter(ext -> 
+                (ext.name != null && ext.name.toLowerCase().contains(lowerFilter)) ||
+                (ext.description != null && ext.description.toLowerCase().contains(lowerFilter))
+            );
+        }
+
+        return stream.collect(Collectors.toList());
+    }
+
+    public List<ExtensionInfo> listInstalledExtensions() throws IOException {
         if (!Files.exists(extensionsDir)) {
             return new ArrayList<>();
         }
@@ -73,7 +193,7 @@ public class ExtensionManager {
                 } catch (Exception e) {
                     if (verbosity > 0) {
                         System.err.println(MessageFormat.format(
-                            bundle.getString("error.extension.manifestLoad"),
+                            bundle.getString("error.extensionmgr.manifestLoadFailed"),
                             manifestPath.getFileName().toString(),
                             e.getMessage()
                         ));
@@ -85,22 +205,186 @@ public class ExtensionManager {
         return extensions;
     }
 
-    // Install an extension from a zip file.
-    public void installExtension(Path zipPath) throws IOException, ExtensionValidationException {
+    public List<ExtensionInfo> listUpgradableExtensions() throws IOException {
+        List<ExtensionInfo> installed = listInstalledExtensions();
+        List<RegistryExtension> available = listAvailableExtensions(null, null);
+        List<ExtensionInfo> upgradable = new ArrayList<>();
+
+        Map<String, RegistryExtension> availableMap = available.stream()
+            .collect(Collectors.toMap(ext -> ext.name, ext -> ext, (a, b) -> a));
+
+        for (ExtensionInfo installedExt : installed) {
+            RegistryExtension availableExt = availableMap.get(installedExt.manifest.name);
+            if (availableExt != null) {
+                int comparison = compareVersions(installedExt.manifest.version, availableExt.version);
+                if (comparison < 0) {
+                    upgradable.add(installedExt);
+                }
+            }
+        }
+
+        return upgradable;
+    }
+
+    public void upgradeExtension(String extensionName) throws IOException, ExtensionValidationException {
+        List<ExtensionInfo> installed = listInstalledExtensions();
+        ExtensionInfo installedExt = installed.stream()
+            .filter(ext -> ext.manifest.name.equals(extensionName))
+            .findFirst()
+            .orElseThrow(() -> new IOException(MessageFormat.format(
+                bundle.getString("error.extensionmgr.notInstalled"), extensionName)));
+
+        List<RegistryExtension> available = listAvailableExtensions(null, null);
+        RegistryExtension availableExt = available.stream()
+            .filter(ext -> ext.name.equals(extensionName))
+            .findFirst()
+            .orElseThrow(() -> new IOException(MessageFormat.format(
+                bundle.getString("error.extensionmgr.notInRegistry"), extensionName)));
+
+        int comparison = compareVersions(installedExt.manifest.version, availableExt.version);
+        if (comparison >= 0) {
+            if (verbosity > 0) {
+                System.out.println(MessageFormat.format(
+                    bundle.getString("msg.extensionmgr.alreadyLatest"), extensionName));
+            }
+            return;
+        }
+
+        if (verbosity > 0) {
+            System.out.println(MessageFormat.format(
+                bundle.getString("msg.extensionmgr.upgrading"),
+                extensionName,
+                installedExt.manifest.version,
+                availableExt.version
+            ));
+        }
+
+        uninstallExtension(extensionName);
+        installExtensionFromRegistry(extensionName);
+
+        if (verbosity > 0) {
+            System.out.println(MessageFormat.format(
+                bundle.getString("msg.extensionmgr.upgraded"),
+                extensionName,
+                availableExt.version
+            ));
+        }
+    }
+
+    private int compareVersions(String v1, String v2) {
+        String[] parts1 = v1.split("\\.");
+        String[] parts2 = v2.split("\\.");
+
+        int maxLength = Math.max(parts1.length, parts2.length);
+        for (int i = 0; i < maxLength; i++) {
+            int num1 = i < parts1.length ? Integer.parseInt(parts1[i]) : 0;
+            int num2 = i < parts2.length ? Integer.parseInt(parts2[i]) : 0;
+
+            if (num1 < num2) return -1;
+            if (num1 > num2) return 1;
+        }
+        return 0;
+    }
+
+    public void installExtension(String extensionNameOrPath) throws IOException, ExtensionValidationException {
+        Path zipPath = Path.of(extensionNameOrPath);
+        
+        if (Files.exists(zipPath)) {
+            installExtensionFromFile(zipPath);
+        } else {
+            installExtensionFromRegistry(extensionNameOrPath);
+        }
+    }
+
+    private void installExtensionFromRegistry(String extensionName) throws IOException, ExtensionValidationException {
+        List<RegistryExtension> available = listAvailableExtensions(null, null);
+        RegistryExtension target = available.stream()
+            .filter(ext -> ext.name.equals(extensionName))
+            .findFirst()
+            .orElseThrow(() -> new IOException(MessageFormat.format(
+                bundle.getString("error.extensionmgr.notFoundInRegistry"), extensionName)));
+
+        if (verbosity > 0) {
+            System.out.println(MessageFormat.format(
+                bundle.getString("msg.extensionmgr.downloading"),
+                target.name,
+                target.version
+            ));
+        }
+
+        Path tempZip = downloadExtension(target.downloadUrl);
+        
+        try {
+            if (target.sha256 != null) {
+                verifyChecksum(tempZip, target.sha256);
+            }
+            
+            installExtensionFromFile(tempZip);
+        } finally {
+            Files.deleteIfExists(tempZip);
+        }
+    }
+
+    private Path downloadExtension(String urlString) throws IOException {
+        URL url = new URL(urlString);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        conn.setConnectTimeout(30000);
+        conn.setReadTimeout(30000);
+
+        Path tempFile = Files.createTempFile("extension-", ".zip");
+        
+        try (InputStream in = conn.getInputStream()) {
+            Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            conn.disconnect();
+        }
+
+        return tempFile;
+    }
+
+    private void verifyChecksum(Path file, String expectedSha256) throws IOException, ExtensionValidationException {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] fileBytes = Files.readAllBytes(file);
+            byte[] hashBytes = digest.digest(fileBytes);
+            
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            String actualSha256 = sb.toString();
+            
+            if (!actualSha256.equals(expectedSha256)) {
+                throw new ExtensionValidationException(
+                    bundle.getString("error.extensionmgr.checksumFailed")
+                );
+            }
+            
+            if (verbosity > 0) {
+                System.out.println(bundle.getString("msg.extensionmgr.checksumVerified"));
+            }
+        } catch (Exception e) {
+            if (e instanceof ExtensionValidationException) {
+                throw (ExtensionValidationException) e;
+            }
+            throw new IOException(MessageFormat.format(
+                bundle.getString("error.extensionmgr.checksumError"), e.getMessage()), e);
+        }
+    }
+
+    private void installExtensionFromFile(Path zipPath) throws IOException, ExtensionValidationException {
         if (!Files.exists(zipPath)) {
             throw new IOException(MessageFormat.format(
-                bundle.getString("error.extension.fileNotFound"),
+                bundle.getString("error.extensionmgr.fileNotFound"),
                 zipPath.toString()
             ));
         }
 
         if (!zipPath.toString().toLowerCase().endsWith(".zip")) {
-            throw new ExtensionValidationException(
-                bundle.getString("error.extension.notZip")
-            );
+            throw new ExtensionValidationException(bundle.getString("error.extensionmgr.mustBeZip"));
         }
 
-        // Step 1: Validate the extension
         ExtensionManifest manifest;
         Map<String, byte[]> fileContents = new HashMap<>();
 
@@ -108,132 +392,106 @@ public class ExtensionManager {
             manifest = validateExtension(zipFile, fileContents);
         }
 
-        // Step 2: Check for file conflicts
         checkFileConflicts(manifest);
 
-        // Step 3: Create directories if needed
         Files.createDirectories(extensionsDir);
         Files.createDirectories(i18nDir);
         Files.createDirectories(guiThemesDir);
 
-        // Step 4: Install the extension files
         installFiles(manifest, fileContents);
-
-        // Step 5: Save the manifest
         saveManifest(manifest);
 
         if (verbosity > 0) {
             System.out.println(MessageFormat.format(
-                bundle.getString("msg.extension.installed"),
+                bundle.getString("msg.extensionmgr.installed"),
                 manifest.name,
                 manifest.version
             ));
         }
     }
 
-    // Uninstalls an extension by name.
     public void uninstallExtension(String extensionName) throws IOException {
         if (!Files.exists(extensionsDir)) {
-            throw new IOException(bundle.getString("error.extension.noneInstalled"));
+            throw new IOException(bundle.getString("error.extensionmgr.noneInstalled"));
         }
 
-        // Find the manifest file
         Path manifestPath = extensionsDir.resolve(extensionName + ".json");
         if (!Files.exists(manifestPath)) {
             throw new IOException(MessageFormat.format(
-                bundle.getString("error.extension.notFound"),
-                extensionName
-            ));
+                bundle.getString("error.extensionmgr.notInstalled"), extensionName));
         }
 
-        // Load manifest to know what files to delete
         ExtensionManifest manifest = loadManifest(manifestPath);
+        Path configDir = configManager.getDefaultConfigDir();
 
-        // Delete mapping files
-        if (manifest.mappingFiles != null) {
-            for (String mappingFile : manifest.mappingFiles) {
-                Path mappingPath = configManager.getDefaultConfigDir().resolve(mappingFile);
-                if (Files.exists(mappingPath)) {
-                    Files.delete(mappingPath);
+        if (manifest.files != null) {
+            if (manifest.files.mappings != null) {
+                for (String mappingFile : manifest.files.mappings) {
+                    Path mappingPath = configDir.resolve(mappingFile);
+                    Files.deleteIfExists(mappingPath);
                     if (verbosity > 0) {
                         System.out.println(MessageFormat.format(
-                            bundle.getString("msg.extension.fileDeleted"),
-                            mappingFile
-                        ));
+                            bundle.getString("msg.extensionmgr.deleted"), mappingFile));
+                    }
+                }
+            }
+
+            if (manifest.files.resources != null) {
+                for (String resourceFile : manifest.files.resources) {
+                    Path resourcePath = i18nDir.resolve(resourceFile);
+                    Files.deleteIfExists(resourcePath);
+                    if (verbosity > 0) {
+                        System.out.println(MessageFormat.format(
+                            bundle.getString("msg.extensionmgr.deleted"), resourceFile));
+                    }
+                }
+            }
+
+            if (manifest.files.themes != null) {
+                for (String themeFile : manifest.files.themes) {
+                    Path themePath = guiThemesDir.resolve(themeFile);
+                    Files.deleteIfExists(themePath);
+                    if (verbosity > 0) {
+                        System.out.println(MessageFormat.format(
+                            bundle.getString("msg.extensionmgr.deleted"), themeFile));
                     }
                 }
             }
         }
 
-        // Delete resource files
-        if (manifest.resourceFiles != null) {
-            for (String resourceFile : manifest.resourceFiles) {
-                Path resourcePath = i18nDir.resolve(resourceFile);
-                if (Files.exists(resourcePath)) {
-                    Files.delete(resourcePath);
-                    if (verbosity > 0) {
-                        System.out.println(MessageFormat.format(
-                            bundle.getString("msg.extension.fileDeleted"),
-                            resourceFile
-                        ));
-                    }
-                }
-            }
-        }
-
-        // Delete theme files
-        if (manifest.themeFiles != null) {
-            for (String themeFile : manifest.themeFiles) {
-                Path themePath = guiThemesDir.resolve(themeFile);
-                if (Files.exists(themePath)) {
-                    Files.delete(themePath);
-                    if (verbosity > 0) {
-                        System.out.println(MessageFormat.format(
-                            bundle.getString("msg.extension.fileDeleted"),
-                            themeFile
-                        ));
-                    }
-                }
-            }
-        }
-
-        // Delete manifest
         Files.delete(manifestPath);
 
         if (verbosity > 0) {
             System.out.println(MessageFormat.format(
-                bundle.getString("msg.extension.uninstalled"),
-                manifest.name
-            ));
+                bundle.getString("msg.extensionmgr.uninstalled"), manifest.name));
         }
     }
 
-    // Checks for file conflicts before installation.
     private void checkFileConflicts(ExtensionManifest manifest) 
             throws IOException, ExtensionValidationException {
-
         List<String> conflicts = new ArrayList<>();
         Path configDir = configManager.getDefaultConfigDir();
 
-        // Check mapping files
-        if (manifest.mappingFiles != null) {
-            for (String mappingFile : manifest.mappingFiles) {
-                // Check if it's a protected file
+        if (manifest.files == null) {
+            return;
+        }
+
+        if (manifest.files.mappings != null) {
+            for (String mappingFile : manifest.files.mappings) {
                 if (PROTECTED_FILES.contains(mappingFile)) {
                     conflicts.add(MessageFormat.format(
-                        bundle.getString("error.extension.protectedFile"),
+                        bundle.getString("error.extensionmgr.protectedFile"),
                         mappingFile
                     ));
                     continue;
                 }
 
-                // Check if owned by another extension
                 Path targetPath = configDir.resolve(mappingFile);
                 if (Files.exists(targetPath)) {
                     String owner = findFileOwner(mappingFile, FileType.MAPPING);
                     if (owner != null && !owner.equals(manifest.name)) {
                         conflicts.add(MessageFormat.format(
-                            bundle.getString("error.extension.fileConflict"),
+                            bundle.getString("error.extensionmgr.fileConflict"),
                             mappingFile,
                             owner
                         ));
@@ -242,15 +500,14 @@ public class ExtensionManager {
             }
         }
 
-        // Check resource files
-        if (manifest.resourceFiles != null) {
-            for (String resourceFile : manifest.resourceFiles) {
+        if (manifest.files.resources != null) {
+            for (String resourceFile : manifest.files.resources) {
                 Path targetPath = i18nDir.resolve(resourceFile);
                 if (Files.exists(targetPath)) {
                     String owner = findFileOwner(resourceFile, FileType.RESOURCE);
                     if (owner != null && !owner.equals(manifest.name)) {
                         conflicts.add(MessageFormat.format(
-                            bundle.getString("error.extension.fileConflict"),
+                            bundle.getString("error.extensionmgr.fileConflict"),
                             resourceFile,
                             owner
                         ));
@@ -259,15 +516,14 @@ public class ExtensionManager {
             }
         }
 
-        // Check theme files
-        if (manifest.themeFiles != null) {
-            for (String themeFile : manifest.themeFiles) {
+        if (manifest.files.themes != null) {
+            for (String themeFile : manifest.files.themes) {
                 Path targetPath = guiThemesDir.resolve(themeFile);
                 if (Files.exists(targetPath)) {
                     String owner = findFileOwner(themeFile, FileType.THEME);
                     if (owner != null && !owner.equals(manifest.name)) {
                         conflicts.add(MessageFormat.format(
-                            bundle.getString("error.extension.fileConflict"),
+                            bundle.getString("error.extensionmgr.fileConflict"),
                             themeFile,
                             owner
                         ));
@@ -278,13 +534,11 @@ public class ExtensionManager {
 
         if (!conflicts.isEmpty()) {
             throw new ExtensionValidationException(
-                bundle.getString("error.extension.conflictsFound") + "\n" +
-                String.join("\n", conflicts)
+                bundle.getString("error.extensionmgr.conflictsDetected") + "\n" + String.join("\n", conflicts)
             );
         }
     }
 
-    // Finds which extension owns a specific file.
     private String findFileOwner(String filename, FileType fileType) throws IOException {
         if (!Files.exists(extensionsDir)) {
             return null;
@@ -298,17 +552,18 @@ public class ExtensionManager {
             for (Path manifestPath : manifestFiles) {
                 try {
                     ExtensionManifest manifest = loadManifest(manifestPath);
+                    if (manifest.files == null) continue;
 
                     List<String> filesToCheck = null;
                     switch (fileType) {
                         case MAPPING:
-                            filesToCheck = manifest.mappingFiles;
+                            filesToCheck = manifest.files.mappings;
                             break;
                         case RESOURCE:
-                            filesToCheck = manifest.resourceFiles;
+                            filesToCheck = manifest.files.resources;
                             break;
                         case THEME:
-                            filesToCheck = manifest.themeFiles;
+                            filesToCheck = manifest.files.themes;
                             break;
                     }
 
@@ -324,106 +579,64 @@ public class ExtensionManager {
         return null;
     }
 
-    // Validates an extension zip file and reads its contents.
     private ExtensionManifest validateExtension(ZipFile zipFile, Map<String, byte[]> fileContents) 
             throws IOException, ExtensionValidationException {
 
-        // Step 1: Check for manifest
         ZipEntry manifestEntry = zipFile.getEntry(MANIFEST_FILENAME);
         if (manifestEntry == null) {
-            throw new ExtensionValidationException(
-                bundle.getString("error.extension.noManifest")
-            );
+            throw new ExtensionValidationException(bundle.getString("error.extensionmgr.noManifest"));
         }
 
-        // Step 2: Parse manifest
         ExtensionManifest manifest;
         try (InputStream is = zipFile.getInputStream(manifestEntry);
              Reader reader = new InputStreamReader(is, StandardCharsets.UTF_8)) {
             manifest = new Gson().fromJson(reader, ExtensionManifest.class);
         } catch (JsonSyntaxException e) {
             throw new ExtensionValidationException(MessageFormat.format(
-                bundle.getString("error.extension.invalidManifest"),
+                bundle.getString("error.extensionmgr.invalidManifest"),
                 e.getMessage()
             ));
         }
 
-        // Step 3: Validate manifest content
-        if (manifest.name == null || manifest.name.trim().isEmpty()) {
-            throw new ExtensionValidationException(
-                bundle.getString("error.extension.noName")
-            );
-        }
+        validateManifestStructure(manifest);
 
-        if (manifest.version == null || manifest.version.trim().isEmpty()) {
-            throw new ExtensionValidationException(
-                bundle.getString("error.extension.noVersion")
-            );
-        }
-
-        // Step 4: Collect all declared files
         Set<String> declaredFiles = new HashSet<>();
-        if (manifest.mappingFiles != null) {
-            declaredFiles.addAll(manifest.mappingFiles);
-        }
-        if (manifest.resourceFiles != null) {
-            declaredFiles.addAll(manifest.resourceFiles);
-        }
-        if (manifest.themeFiles != null) {
-            declaredFiles.addAll(manifest.themeFiles);
+        if (manifest.files != null) {
+            if (manifest.files.mappings != null) {
+                declaredFiles.addAll(manifest.files.mappings);
+            }
+            if (manifest.files.resources != null) {
+                declaredFiles.addAll(manifest.files.resources);
+            }
+            if (manifest.files.themes != null) {
+                declaredFiles.addAll(manifest.files.themes);
+            }
         }
 
         if (declaredFiles.isEmpty()) {
-            throw new ExtensionValidationException(
-                bundle.getString("error.extension.noFiles")
-            );
+            throw new ExtensionValidationException(bundle.getString("error.extensionmgr.noFiles"));
         }
 
-        // Step 5: Verify all declared files exist in zip
         for (String declaredFile : declaredFiles) {
             ZipEntry entry = zipFile.getEntry(declaredFile);
             if (entry == null) {
                 throw new ExtensionValidationException(MessageFormat.format(
-                    bundle.getString("error.extension.fileMissing"),
+                    bundle.getString("error.extensionmgr.fileMissing"),
                     declaredFile
                 ));
             }
 
-            // Read file content
             try (InputStream is = zipFile.getInputStream(entry)) {
                 fileContents.put(declaredFile, is.readAllBytes());
             }
         }
 
-        // Step 6: Validate file naming conventions
-        if (manifest.mappingFiles != null) {
-            for (String mappingFile : manifest.mappingFiles) {
+        if (manifest.files != null && manifest.files.mappings != null) {
+            for (String mappingFile : manifest.files.mappings) {
                 if (!mappingFile.matches(".*_mapping\\.json")) {
                     throw new ExtensionValidationException(MessageFormat.format(
-                        bundle.getString("error.extension.invalidMappingName"),
+                        bundle.getString("error.extensionmgr.invalidMappingName"),
                         mappingFile
-                    ));
-                }
-            }
-        }
-
-        if (manifest.resourceFiles != null) {
-            for (String resourceFile : manifest.resourceFiles) {
-                if (!resourceFile.matches("(messages|gui)_[a-z]{2}(_[A-Z]{2})?\\.properties")) {
-                    throw new ExtensionValidationException(MessageFormat.format(
-                        bundle.getString("error.extension.invalidResourceName"),
-                        resourceFile
-                    ));
-                }
-            }
-        }
-
-        if (manifest.themeFiles != null) {
-            for (String themeFile : manifest.themeFiles) {
-                if (!themeFile.endsWith(".json")) {
-                    throw new ExtensionValidationException(MessageFormat.format(
-                        bundle.getString("error.extension.invalidThemeName"),
-                        themeFile
                     ));
                 }
             }
@@ -432,58 +645,115 @@ public class ExtensionManager {
         return manifest;
     }
 
-    /**
-     * Installs files from the validated extension.
-     */
+    private void validateManifestStructure(ExtensionManifest manifest) throws ExtensionValidationException {
+        if (manifest.name == null || manifest.name.trim().isEmpty()) {
+            throw new ExtensionValidationException(bundle.getString("error.extensionmgr.nameRequired"));
+        }
+
+        if (manifest.version == null || manifest.version.trim().isEmpty()) {
+            throw new ExtensionValidationException(bundle.getString("error.extensionmgr.versionRequired"));
+        }
+
+        if (manifest.type == null || manifest.type.trim().isEmpty()) {
+            throw new ExtensionValidationException(bundle.getString("error.extensionmgr.typeRequired"));
+        }
+
+        if (!ALLOWED_FILE_TYPES.containsKey(manifest.type)) {
+            throw new ExtensionValidationException(MessageFormat.format(
+                bundle.getString("error.extensionmgr.invalidType"),
+                manifest.type,
+                String.join(", ", ALLOWED_FILE_TYPES.keySet())
+            ));
+        }
+
+        if (manifest.files == null) {
+            throw new ExtensionValidationException(bundle.getString("error.extensionmgr.filesRequired"));
+        }
+
+        Set<String> allowedTypes = ALLOWED_FILE_TYPES.get(manifest.type);
+        boolean hasFiles = false;
+
+        if (manifest.files.mappings != null && !manifest.files.mappings.isEmpty()) {
+            if (!allowedTypes.contains("mappings")) {
+                throw new ExtensionValidationException(MessageFormat.format(
+                    bundle.getString("error.extensionmgr.cannotContainMappings"),
+                    manifest.type
+                ));
+            }
+            hasFiles = true;
+        }
+
+        if (manifest.files.resources != null && !manifest.files.resources.isEmpty()) {
+            if (!allowedTypes.contains("resources")) {
+                throw new ExtensionValidationException(MessageFormat.format(
+                    bundle.getString("error.extensionmgr.cannotContainResources"),
+                    manifest.type
+                ));
+            }
+            hasFiles = true;
+        }
+
+        if (manifest.files.themes != null && !manifest.files.themes.isEmpty()) {
+            if (!allowedTypes.contains("themes")) {
+                throw new ExtensionValidationException(MessageFormat.format(
+                    bundle.getString("error.extensionmgr.cannotContainThemes"),
+                    manifest.type
+                ));
+            }
+            hasFiles = true;
+        }
+
+        if (!hasFiles) {
+            throw new ExtensionValidationException(MessageFormat.format(
+                bundle.getString("error.extensionmgr.mustDeclareFiles"),
+                manifest.type,
+                String.join(", ", allowedTypes)
+            ));
+        }
+    }
+
     private void installFiles(ExtensionManifest manifest, Map<String, byte[]> fileContents) 
             throws IOException {
-
         Path configDir = configManager.getDefaultConfigDir();
 
-        // Install mapping files
-        if (manifest.mappingFiles != null) {
-            for (String mappingFile : manifest.mappingFiles) {
+        if (manifest.files == null) {
+            return;
+        }
+
+        if (manifest.files.mappings != null) {
+            for (String mappingFile : manifest.files.mappings) {
                 Path targetPath = configDir.resolve(mappingFile);
                 Files.write(targetPath, fileContents.get(mappingFile));
                 if (verbosity > 0) {
                     System.out.println(MessageFormat.format(
-                        bundle.getString("msg.extension.fileInstalled"),
-                        mappingFile
-                    ));
+                        bundle.getString("msg.extensionmgr.fileInstalled"), mappingFile));
                 }
             }
         }
 
-        // Install resource files
-        if (manifest.resourceFiles != null) {
-            for (String resourceFile : manifest.resourceFiles) {
+        if (manifest.files.resources != null) {
+            for (String resourceFile : manifest.files.resources) {
                 Path targetPath = i18nDir.resolve(resourceFile);
                 Files.write(targetPath, fileContents.get(resourceFile));
                 if (verbosity > 0) {
                     System.out.println(MessageFormat.format(
-                        bundle.getString("msg.extension.fileInstalled"),
-                        resourceFile
-                    ));
+                        bundle.getString("msg.extensionmgr.fileInstalled"), resourceFile));
                 }
             }
         }
 
-        // Install theme files
-        if (manifest.themeFiles != null) {
-            for (String themeFile : manifest.themeFiles) {
+        if (manifest.files.themes != null) {
+            for (String themeFile : manifest.files.themes) {
                 Path targetPath = guiThemesDir.resolve(themeFile);
                 Files.write(targetPath, fileContents.get(themeFile));
                 if (verbosity > 0) {
                     System.out.println(MessageFormat.format(
-                        bundle.getString("msg.extension.fileInstalled"),
-                        themeFile
-                    ));
+                        bundle.getString("msg.extensionmgr.fileInstalled"), themeFile));
                 }
             }
         }
     }
 
-    // Save the manifest to the extensions directory.
     private void saveManifest(ExtensionManifest manifest) throws IOException {
         Path manifestPath = extensionsDir.resolve(manifest.name + ".json");
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -491,30 +761,61 @@ public class ExtensionManager {
         Files.writeString(manifestPath, json, StandardCharsets.UTF_8);
     }
 
-    // Loads a manifest from a file.
     private ExtensionManifest loadManifest(Path manifestPath) throws IOException {
         String json = Files.readString(manifestPath, StandardCharsets.UTF_8);
         return new Gson().fromJson(json, ExtensionManifest.class);
     }
 
-    // Extension manifest structure.
     public static class ExtensionManifest {
         public String name;
         public String version;
+        public String type;
         public String description;
         public String author;
-
-        @SerializedName("mapping_files")
-        public List<String> mappingFiles;
-
-        @SerializedName("resource_files")
-        public List<String> resourceFiles;
-
-        @SerializedName("theme_files")
-        public List<String> themeFiles;
+        public ExtensionFiles files;
     }
 
-    // Information about an installed extension.
+    public static class ExtensionFiles {
+        public List<String> mappings;
+        public List<String> resources;
+        public List<String> themes;
+    }
+
+    public static class ExtensionRegistry {
+        public String version;
+        @SerializedName("last_updated")
+        public String lastUpdated;
+        public List<RegistryExtension> extensions;
+    }
+
+    public static class RegistryExtension {
+        public String name;
+        public String version;
+        public String type;
+        public String description;
+        public String author;
+        public ExtensionFiles files;
+        @SerializedName("download_url")
+        public String downloadUrl;
+        public Long size;
+        public String sha256;
+        @SerializedName("published_date")
+        public String publishedDate;
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append(String.format("%s v%s (%s)", name, version, type));
+            if (description != null) {
+                sb.append(" - ").append(description);
+            }
+            if (author != null) {
+                sb.append(" (by ").append(author).append(")");
+            }
+            return sb.toString();
+        }
+    }
+
     public static class ExtensionInfo {
         public final ExtensionManifest manifest;
         public final Path manifestPath;
@@ -528,6 +829,9 @@ public class ExtensionManager {
         public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append(String.format("%s v%s", manifest.name, manifest.version));
+            if (manifest.type != null) {
+                sb.append(String.format(" (%s)", manifest.type));
+            }
             if (manifest.description != null) {
                 sb.append(" - ").append(manifest.description);
             }
@@ -538,14 +842,12 @@ public class ExtensionManager {
         }
     }
 
-    // Exception for extension validation errors.
     public static class ExtensionValidationException extends Exception {
         public ExtensionValidationException(String message) {
             super(message);
         }
     }
 
-    // File type enumeration for conflict checking.
     private enum FileType {
         MAPPING,
         RESOURCE,

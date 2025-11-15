@@ -79,7 +79,7 @@ public class ModuleManager {
         this.verbosity = verbosity;
 
         ExternalResourceBundleLoader externalLoader = new ExternalResourceBundleLoader(configManager.getDefaultConfigDir());
-        this.bundle = externalLoader.getBundle("i18n.module");
+        this.bundle = externalLoader.getBundle("i18n.messages");
 
         ensureDirectories();
         initializeCacheDatabase();

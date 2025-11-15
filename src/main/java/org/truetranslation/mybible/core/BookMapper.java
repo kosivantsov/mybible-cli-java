@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.TreeMap;
 
+@SuppressWarnings("unchecked")
 public class BookMapper {
 
     private final Map<Integer, Book> booksByNumber = new HashMap<>();

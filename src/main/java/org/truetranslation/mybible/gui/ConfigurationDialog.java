@@ -110,10 +110,10 @@ public class ConfigurationDialog extends JDialog {
         themeButtonPanel.add(loadThemeButton);
 
         JPanel extensionButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        extensionsButton = new JButton(bundle.getString("button.manageExtensions"));
         modulesButton = new JButton(bundle.getString("button.manageModules"));
-        extensionButtonPanel.add(extensionsButton);
+        extensionsButton = new JButton(bundle.getString("button.manageExtensions"));
         extensionButtonPanel.add(modulesButton);
+        extensionButtonPanel.add(extensionsButton);
 
         JPanel actionButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton resetButton = new JButton(bundle.getString("button.resetDefaults"));

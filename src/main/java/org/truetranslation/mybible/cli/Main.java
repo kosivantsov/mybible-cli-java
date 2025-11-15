@@ -680,22 +680,32 @@ public class Main implements Callable<Integer> {
     @Command(name = "ext", resourceBundle = "picocli.ext")
     static class ExtCommand implements Callable<Integer> {
 
-        // private static final ResourceBundle bundle = ResourceBundle.getBundle("i18n.messages");
+        @Option(names = {"-i", "--install"}, paramLabel = "<name|file>", descriptionKey = "install")
+        private String installTarget;
 
-        @Option(names = {"-i", "--install"}, paramLabel = "<file>", descriptionKey = "install")
-        private String installPath;
-
-        @Option(names = {"-u", "--uninstall"}, paramLabel = "<name>", descriptionKey = "uninstall", arity = "0..1")
+        @Option(names = {"-u", "--uninstall"}, paramLabel = "<name>", descriptionKey = "uninstall")
         private String uninstallName;
 
-        @Option(names = {"-l", "--list"}, descriptionKey = "list")
-        private boolean list;
+        @Option(names = {"-g", "--upgrade"}, paramLabel = "<name>", descriptionKey = "upgrade", arity = "0..1")
+        private String upgradeName;
+
+        @Option(names = {"-l", "--list"}, paramLabel = "[installed|available|upgradable]", descriptionKey = "list", arity = "0..1")
+        private String listMode;
+
+        @Option(names = {"--update"}, descriptionKey = "update")
+        private boolean updateRegistries;
 
         @Option(names = {"-s", "--show", "--info"}, paramLabel = "<name>", descriptionKey = "show")
         private String showName;
 
+        @Option(names = {"-t", "--type"}, paramLabel = "<type>", descriptionKey = "type")
+        private String typeFilter;
+
+        @Option(names = {"-f", "--filter"}, paramLabel = "<text>", descriptionKey = "filter")
+        private String nameFilter;
+
         @Option(names = {"--all"}, descriptionKey = "all")
-        private boolean uninstallAll;
+        private boolean applyToAll;
 
         @Option(names = {"--verbose"}, descriptionKey = "verbose")
         private boolean verbose;
@@ -710,30 +720,33 @@ public class Main implements Callable<Integer> {
             if (verbose) verbosity = 1;
             if (silent) verbosity = 0;
 
-            ExtensionManager extensionManager = new ExtensionManager(configManager, verbosity);
-
             try {
-                // Install extension
-                if (installPath != null) {
-                    return installExtension(extensionManager, installPath);
+                ExtensionManager extensionManager = new ExtensionManager(configManager, verbosity);
+
+                if (updateRegistries) {
+                    return updateExtensionRegistries(extensionManager);
                 }
 
-                // Uninstall extension(s)
-                if (uninstallName != null || uninstallAll) {
+                if (installTarget != null) {
+                    return installExtension(extensionManager, installTarget);
+                }
+
+                if (upgradeName != null || applyToAll) {
+                    return upgradeExtensions(extensionManager);
+                }
+
+                if (uninstallName != null || (applyToAll && listMode != null && listMode.equalsIgnoreCase("installed"))) {
                     return uninstallExtensions(extensionManager);
                 }
 
-                // Show extension info
                 if (showName != null) {
                     return showExtensionInfo(extensionManager, showName);
                 }
 
-                // List extensions
-                if (list) {
-                    return listExtensions(extensionManager);
+                if (listMode != null) {
+                    return listExtensions(extensionManager, listMode);
                 }
 
-                // No option specified, show usage
                 System.err.println(bundle.getString("error.ext.noOption"));
                 return 1;
 
@@ -749,12 +762,24 @@ public class Main implements Callable<Integer> {
             }
         }
 
-        private int installExtension(ExtensionManager extensionManager, String filePath) {
+        private int updateExtensionRegistries(ExtensionManager extensionManager) {
             try {
-                Path zipPath = Paths.get(filePath);
-                extensionManager.installExtension(zipPath);
+                extensionManager.updateRegistries();
                 return 0;
-            } catch (ExtensionValidationException e) {
+            } catch (IOException e) {
+                System.err.println(MessageFormat.format(
+                    bundle.getString("error.ext.updateFailed"),
+                    e.getMessage()
+                ));
+                return 1;
+            }
+        }
+
+        private int installExtension(ExtensionManager extensionManager, String target) {
+            try {
+                extensionManager.installExtension(target);
+                return 0;
+            } catch (ExtensionManager.ExtensionValidationException e) {
                 System.err.println(MessageFormat.format(
                     bundle.getString("error.ext.validationFailed"),
                     e.getMessage()
@@ -769,9 +794,90 @@ public class Main implements Callable<Integer> {
             }
         }
 
+        private int upgradeExtensions(ExtensionManager extensionManager) {
+            try {
+                if (applyToAll) {
+                    return upgradeAllExtensions(extensionManager);
+                } else if (upgradeName != null && !upgradeName.isEmpty()) {
+                    extensionManager.upgradeExtension(upgradeName);
+                    return 0;
+                } else {
+                    System.err.println(bundle.getString("error.ext.noUpgradeTarget"));
+                    return 1;
+                }
+            } catch (ExtensionManager.ExtensionValidationException e) {
+                System.err.println(MessageFormat.format(
+                    bundle.getString("error.ext.validationFailed"),
+                    e.getMessage()
+                ));
+                return 1;
+            } catch (IOException e) {
+                System.err.println(MessageFormat.format(
+                    bundle.getString("error.ext.upgradeFailed"),
+                    e.getMessage()
+                ));
+                return 1;
+            }
+        }
+
+        private int upgradeAllExtensions(ExtensionManager extensionManager) throws IOException {
+            List<ExtensionManager.ExtensionInfo> upgradable = extensionManager.listUpgradableExtensions();
+
+            if (upgradable.isEmpty()) {
+                System.out.println(bundle.getString("msg.ext.noUpgradableExtensions"));
+                return 0;
+            }
+
+            System.out.println(bundle.getString("msg.ext.upgradeAllPrompt"));
+            for (ExtensionManager.ExtensionInfo ext : upgradable) {
+                System.out.println("  - " + ext.manifest.name + " v" + ext.manifest.version);
+            }
+            System.out.println();
+
+            System.out.print(bundle.getString("msg.ext.confirmUpgradeAll"));
+            System.out.flush();
+
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
+                String response = reader.readLine();
+                if (response == null || !response.trim().toLowerCase().matches("y|yes")) {
+                    System.out.println(bundle.getString("msg.ext.cancelled"));
+                    return 0;
+                }
+            } catch (IOException e) {
+                System.err.println(bundle.getString("error.ext.inputFailed"));
+                return 1;
+            }
+
+            int successCount = 0;
+            int failCount = 0;
+
+            for (ExtensionManager.ExtensionInfo ext : upgradable) {
+                try {
+                    extensionManager.upgradeExtension(ext.manifest.name);
+                    successCount++;
+                } catch (Exception e) {
+                    System.err.println(MessageFormat.format(
+                        bundle.getString("error.ext.upgradeItemFailed"),
+                        ext.manifest.name,
+                        e.getMessage()
+                    ));
+                    failCount++;
+                }
+            }
+
+            System.out.println();
+            System.out.println(MessageFormat.format(
+                bundle.getString("msg.ext.upgradeSummary"),
+                successCount,
+                failCount
+            ));
+
+            return failCount > 0 ? 1 : 0;
+        }
+
         private int uninstallExtensions(ExtensionManager extensionManager) {
             try {
-                if (uninstallAll) {
+                if (applyToAll) {
                     return uninstallAllExtensions(extensionManager);
                 } else if (uninstallName != null && !uninstallName.isEmpty()) {
                     extensionManager.uninstallExtension(uninstallName);
@@ -790,21 +896,19 @@ public class Main implements Callable<Integer> {
         }
 
         private int uninstallAllExtensions(ExtensionManager extensionManager) throws IOException {
-            List<ExtensionInfo> extensions = extensionManager.listExtensions();
+            List<ExtensionManager.ExtensionInfo> extensions = extensionManager.listInstalledExtensions();
 
             if (extensions.isEmpty()) {
                 System.out.println(bundle.getString("msg.ext.noExtensions"));
                 return 0;
             }
 
-            // Show what will be uninstalled
             System.out.println(bundle.getString("msg.ext.uninstallAllPrompt"));
-            for (ExtensionInfo ext : extensions) {
+            for (ExtensionManager.ExtensionInfo ext : extensions) {
                 System.out.println("  - " + ext.manifest.name + " v" + ext.manifest.version);
             }
             System.out.println();
 
-            // Ask for confirmation
             System.out.print(bundle.getString("msg.ext.confirmUninstallAll"));
             System.out.flush();
 
@@ -819,11 +923,10 @@ public class Main implements Callable<Integer> {
                 return 1;
             }
 
-            // Uninstall all extensions
             int successCount = 0;
             int failCount = 0;
 
-            for (ExtensionInfo ext : extensions) {
+            for (ExtensionManager.ExtensionInfo ext : extensions) {
                 try {
                     extensionManager.uninstallExtension(ext.manifest.name);
                     successCount++;
@@ -837,7 +940,6 @@ public class Main implements Callable<Integer> {
                 }
             }
 
-            // Show summary
             System.out.println();
             System.out.println(MessageFormat.format(
                 bundle.getString("msg.ext.uninstallSummary"),
@@ -848,23 +950,21 @@ public class Main implements Callable<Integer> {
             return failCount > 0 ? 1 : 0;
         }
 
-        private int listExtensions(ExtensionManager extensionManager) {
+        private int listExtensions(ExtensionManager extensionManager, String mode) {
             try {
-                List<ExtensionInfo> extensions = extensionManager.listExtensions();
-
-                if (extensions.isEmpty()) {
-                    System.out.println(bundle.getString("msg.ext.noExtensions"));
-                    return 0;
+                if (mode == null || mode.isEmpty() || mode.equalsIgnoreCase("installed")) {
+                    return listInstalledExtensions(extensionManager);
+                } else if (mode.equalsIgnoreCase("available")) {
+                    return listAvailableExtensions(extensionManager);
+                } else if (mode.equalsIgnoreCase("upgradable")) {
+                    return listUpgradableExtensions(extensionManager);
+                } else {
+                    System.err.println(MessageFormat.format(
+                        bundle.getString("error.ext.invalidListMode"),
+                        mode
+                    ));
+                    return 1;
                 }
-
-                System.out.println(bundle.getString("msg.ext.installedExtensions"));
-                System.out.println();
-
-                for (ExtensionInfo ext : extensions) {
-                    System.out.println(ext.toString());
-                }
-
-                return 0;
             } catch (IOException e) {
                 System.err.println(MessageFormat.format(
                     bundle.getString("error.ext.listFailed"),
@@ -874,19 +974,102 @@ public class Main implements Callable<Integer> {
             }
         }
 
+        private int listInstalledExtensions(ExtensionManager extensionManager) throws IOException {
+            List<ExtensionManager.ExtensionInfo> extensions = extensionManager.listInstalledExtensions();
+
+            if (extensions.isEmpty()) {
+                System.out.println(bundle.getString("msg.ext.noExtensions"));
+                return 0;
+            }
+
+            System.out.println(bundle.getString("msg.ext.installedExtensions"));
+            System.out.println();
+
+            for (ExtensionManager.ExtensionInfo ext : extensions) {
+                System.out.println(ext.toString());
+            }
+
+            return 0;
+        }
+
+        private int listAvailableExtensions(ExtensionManager extensionManager) throws IOException {
+            List<ExtensionManager.RegistryExtension> extensions = 
+                extensionManager.listAvailableExtensions(typeFilter, nameFilter);
+
+            if (extensions.isEmpty()) {
+                System.out.println(bundle.getString("msg.ext.noAvailableExtensions"));
+                return 0;
+            }
+
+            System.out.println(bundle.getString("msg.ext.availableExtensions"));
+            if (typeFilter != null) {
+                System.out.println(MessageFormat.format(
+                    bundle.getString("msg.ext.filteredByType"),
+                    typeFilter
+                ));
+            }
+            if (nameFilter != null) {
+                System.out.println(MessageFormat.format(
+                    bundle.getString("msg.ext.filteredByName"),
+                    nameFilter
+                ));
+            }
+            System.out.println();
+
+            for (ExtensionManager.RegistryExtension ext : extensions) {
+                System.out.println(ext.toString());
+            }
+
+            System.out.println();
+            System.out.println(MessageFormat.format(
+                bundle.getString("msg.ext.totalAvailable"),
+                extensions.size()
+            ));
+
+            return 0;
+        }
+
+        private int listUpgradableExtensions(ExtensionManager extensionManager) throws IOException {
+            List<ExtensionManager.ExtensionInfo> extensions = extensionManager.listUpgradableExtensions();
+
+            if (extensions.isEmpty()) {
+                System.out.println(bundle.getString("msg.ext.noUpgradableExtensions"));
+                return 0;
+            }
+
+            System.out.println(bundle.getString("msg.ext.upgradableExtensions"));
+            System.out.println();
+
+            for (ExtensionManager.ExtensionInfo ext : extensions) {
+                System.out.println(ext.toString());
+            }
+
+            System.out.println();
+            System.out.println(MessageFormat.format(
+                bundle.getString("msg.ext.totalUpgradable"),
+                extensions.size()
+            ));
+
+            return 0;
+        }
+
         private int showExtensionInfo(ExtensionManager extensionManager, String extensionName) {
             try {
-                List<ExtensionInfo> extensions = extensionManager.listExtensions();
-                ExtensionInfo targetExt = null;
+                List<ExtensionManager.ExtensionInfo> installedExtensions = 
+                    extensionManager.listInstalledExtensions();
+                ExtensionManager.ExtensionInfo installedExt = installedExtensions.stream()
+                    .filter(ext -> ext.manifest.name.equals(extensionName))
+                    .findFirst()
+                    .orElse(null);
 
-                for (ExtensionInfo ext : extensions) {
-                    if (ext.manifest.name.equals(extensionName)) {
-                        targetExt = ext;
-                        break;
-                    }
-                }
+                List<ExtensionManager.RegistryExtension> availableExtensions = 
+                    extensionManager.listAvailableExtensions(null, extensionName);
+                ExtensionManager.RegistryExtension availableExt = availableExtensions.stream()
+                    .filter(ext -> ext.name.equals(extensionName))
+                    .findFirst()
+                    .orElse(null);
 
-                if (targetExt == null) {
+                if (installedExt == null && availableExt == null) {
                     System.err.println(MessageFormat.format(
                         bundle.getString("error.extension.notFound"),
                         extensionName
@@ -894,53 +1077,24 @@ public class Main implements Callable<Integer> {
                     return 1;
                 }
 
-                // Display extension information
                 System.out.println(bundle.getString("msg.ext.extensionInfo"));
                 System.out.println();
-                System.out.println(MessageFormat.format(
-                    bundle.getString("msg.ext.info.name"),
-                    targetExt.manifest.name
-                ));
-                System.out.println(MessageFormat.format(
-                    bundle.getString("msg.ext.info.version"),
-                    targetExt.manifest.version
-                ));
 
-                if (targetExt.manifest.description != null) {
-                    System.out.println(MessageFormat.format(
-                        bundle.getString("msg.ext.info.description"),
-                        targetExt.manifest.description
-                    ));
+                if (installedExt != null) {
+                    displayInstalledInfo(installedExt);
+                } else {
+                    displayAvailableInfo(availableExt);
                 }
 
-                if (targetExt.manifest.author != null) {
-                    System.out.println(MessageFormat.format(
-                        bundle.getString("msg.ext.info.author"),
-                        targetExt.manifest.author
-                    ));
-                }
-
-                System.out.println();
-                System.out.println(bundle.getString("msg.ext.info.files"));
-
-                if (targetExt.manifest.mappingFiles != null && !targetExt.manifest.mappingFiles.isEmpty()) {
-                    System.out.println("  " + bundle.getString("msg.ext.info.mappings"));
-                    for (String file : targetExt.manifest.mappingFiles) {
-                        System.out.println("    - " + file);
-                    }
-                }
-
-                if (targetExt.manifest.resourceFiles != null && !targetExt.manifest.resourceFiles.isEmpty()) {
-                    System.out.println("  " + bundle.getString("msg.ext.info.resources"));
-                    for (String file : targetExt.manifest.resourceFiles) {
-                        System.out.println("    - " + file);
-                    }
-                }
-
-                if (targetExt.manifest.themeFiles != null && !targetExt.manifest.themeFiles.isEmpty()) {
-                    System.out.println("  " + bundle.getString("msg.ext.info.themes"));
-                    for (String file : targetExt.manifest.themeFiles) {
-                        System.out.println("    - " + file);
+                if (installedExt != null && availableExt != null) {
+                    System.out.println();
+                    if (!installedExt.manifest.version.equals(availableExt.version)) {
+                        System.out.println(MessageFormat.format(
+                            bundle.getString("msg.ext.updateAvailable"),
+                            availableExt.version
+                        ));
+                    } else {
+                        System.out.println(bundle.getString("msg.ext.upToDate"));
                     }
                 }
 
@@ -952,6 +1106,112 @@ public class Main implements Callable<Integer> {
                 ));
                 return 1;
             }
+        }
+
+        private void displayInstalledInfo(ExtensionManager.ExtensionInfo ext) {
+            System.out.println(MessageFormat.format(
+                bundle.getString("msg.ext.info.name"),
+                ext.manifest.name
+            ));
+            System.out.println(MessageFormat.format(
+                bundle.getString("msg.ext.info.version"),
+                ext.manifest.version
+            ));
+            System.out.println(MessageFormat.format(
+                bundle.getString("msg.ext.info.type"),
+                ext.manifest.type != null ? ext.manifest.type : "unknown"
+            ));
+
+            if (ext.manifest.description != null) {
+                System.out.println(MessageFormat.format(
+                    bundle.getString("msg.ext.info.description"),
+                    ext.manifest.description
+                ));
+            }
+
+            if (ext.manifest.author != null) {
+                System.out.println(MessageFormat.format(
+                    bundle.getString("msg.ext.info.author"),
+                    ext.manifest.author
+                ));
+            }
+
+            System.out.println();
+            System.out.println(bundle.getString("msg.ext.info.status") + " " + 
+                bundle.getString("msg.ext.info.installed"));
+
+            if (ext.manifest.files != null) {
+                System.out.println();
+                System.out.println(bundle.getString("msg.ext.info.files"));
+
+                if (ext.manifest.files.mappings != null && !ext.manifest.files.mappings.isEmpty()) {
+                    System.out.println("  " + bundle.getString("msg.ext.info.mappings"));
+                    for (String file : ext.manifest.files.mappings) {
+                        System.out.println("    - " + file);
+                    }
+                }
+
+                if (ext.manifest.files.resources != null && !ext.manifest.files.resources.isEmpty()) {
+                    System.out.println("  " + bundle.getString("msg.ext.info.resources"));
+                    for (String file : ext.manifest.files.resources) {
+                        System.out.println("    - " + file);
+                    }
+                }
+
+                if (ext.manifest.files.themes != null && !ext.manifest.files.themes.isEmpty()) {
+                    System.out.println("  " + bundle.getString("msg.ext.info.themes"));
+                    for (String file : ext.manifest.files.themes) {
+                        System.out.println("    - " + file);
+                    }
+                }
+            }
+        }
+
+        private void displayAvailableInfo(ExtensionManager.RegistryExtension ext) {
+            System.out.println(MessageFormat.format(
+                bundle.getString("msg.ext.info.name"),
+                ext.name
+            ));
+            System.out.println(MessageFormat.format(
+                bundle.getString("msg.ext.info.version"),
+                ext.version
+            ));
+            System.out.println(MessageFormat.format(
+                bundle.getString("msg.ext.info.type"),
+                ext.type
+            ));
+
+            if (ext.description != null) {
+                System.out.println(MessageFormat.format(
+                    bundle.getString("msg.ext.info.description"),
+                    ext.description
+                ));
+            }
+
+            if (ext.author != null) {
+                System.out.println(MessageFormat.format(
+                    bundle.getString("msg.ext.info.author"),
+                    ext.author
+                ));
+            }
+
+            if (ext.size != null) {
+                System.out.println(MessageFormat.format(
+                    bundle.getString("msg.ext.info.size"),
+                    ext.size / 1024.0
+                ));
+            }
+
+            if (ext.publishedDate != null) {
+                System.out.println(MessageFormat.format(
+                    bundle.getString("msg.ext.info.published"),
+                    ext.publishedDate
+                ));
+            }
+
+            System.out.println();
+            System.out.println(bundle.getString("msg.ext.info.status") + " " + 
+                bundle.getString("msg.ext.info.notInstalled"));
         }
     }
 
