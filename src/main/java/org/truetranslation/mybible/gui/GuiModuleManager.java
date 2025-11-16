@@ -40,6 +40,7 @@ public class GuiModuleManager extends JDialog {
     private JTextField descFilter;
 
     private JButton actionButton;
+    private JButton installFromFileButton;
     private JButton infoButton;
     private JButton updateButton;
     private JButton purgeButton;
@@ -181,6 +182,7 @@ public class GuiModuleManager extends JDialog {
         // Buttons
         actionButton = new JButton(bundle.getString("moduleMgr.action.install"));
         actionButton.setEnabled(false);
+        installFromFileButton = new JButton(bundle.getString("button.modules.installFile"));
         infoButton = new JButton(bundle.getString("moduleMgr.button.info"));
         updateButton = new JButton(bundle.getString("moduleMgr.button.update"));
         purgeButton = new JButton(bundle.getString("moduleMgr.button.purge"));
@@ -225,6 +227,7 @@ public class GuiModuleManager extends JDialog {
 
         JPanel leftButtonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         leftButtonPanel.add(actionButton);
+        leftButtonPanel.add(installFromFileButton);
         leftButtonPanel.add(infoButton);
 
         JPanel rightButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
@@ -293,6 +296,7 @@ public class GuiModuleManager extends JDialog {
 
         // Button listeners
         actionButton.addActionListener(e -> performAction());
+        installFromFileButton.addActionListener(e -> installFromFile());
         infoButton.addActionListener(e -> showModuleInfo());
         updateButton.addActionListener(e -> updateCache());
         purgeButton.addActionListener(e -> purgeCache(false));
@@ -798,6 +802,53 @@ public class GuiModuleManager extends JDialog {
                 MessageFormat.format(bundle.getString("moduleMgr.error.infoFailed"), e.getMessage()),
                 bundle.getString("error.title"),
                 JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void installFromFile() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileFilter(new FileNameExtensionFilter(
+            "Module files (*.sqlite3, *.zip)", "sqlite3", "sqlite", "zip"));
+        fileChooser.setDialogTitle(bundle.getString("dialog.modules.selectFile"));
+        fileChooser.setMultiSelectionEnabled(true);
+
+        int result = fileChooser.showOpenDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File[] selectedFiles = fileChooser.getSelectedFiles();
+
+            SwingWorker<Void, String> worker = new SwingWorker<>() {
+                @Override
+                protected Void doInBackground() throws Exception {
+                    for (File file : selectedFiles) {
+                        try {
+                            publish(MessageFormat.format("Installing {0}...", file.getName()));
+                            moduleManager.installFromFile(file.getAbsolutePath());
+                        } catch (Exception e) {
+                            publish(MessageFormat.format("Failed to install {0}: {1}", 
+                                file.getName(), e.getMessage()));
+                        }
+                    }
+                    return null;
+                }
+
+                @Override
+                protected void process(List<String> chunks) {
+                    for (String msg : chunks) {
+                        System.out.println(msg);
+                    }
+                }
+
+                @Override
+                protected void done() {
+                    loadModules();
+                    JOptionPane.showMessageDialog(GuiModuleManager.this,
+                        bundle.getString("msg.modules.installComplete"),
+                        bundle.getString("success.title"),
+                        JOptionPane.INFORMATION_MESSAGE);
+                }
+            };
+
+            worker.execute();
         }
     }
 

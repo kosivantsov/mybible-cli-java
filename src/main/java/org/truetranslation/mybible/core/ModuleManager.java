@@ -21,6 +21,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * Manages MyBible module downloads, caching, installation, and updates.
@@ -1033,6 +1036,439 @@ public class ModuleManager {
         public UpgradableModule(InstalledModule installed, CachedModule latest) {
             this.installed = installed;
             this.latest = latest;
+        }
+    }
+
+    /**
+     * Install a module from a local SQL or ZIP file.
+     * 
+     * @param filePath Path to the local .sql, .sqlite3, or .zip file
+     * @return true if installation was successful
+     * @throws IOException if installation fails
+     */
+    public boolean installFromFile(String filePath) throws IOException {
+        Path sourceFile = Paths.get(filePath);
+        
+        if (!Files.exists(sourceFile)) {
+            throw new IOException(MessageFormat.format(
+                bundle.getString("error.fileNotFound"), filePath));
+        }
+        
+        String fileName = sourceFile.getFileName().toString();
+        String fileExtension = getFileExtension(fileName).toLowerCase();
+        
+        // Validate file type
+        if (!fileExtension.equals("zip") && !fileExtension.equals("sql") && 
+            !fileExtension.equals("sqlite3")) {
+            throw new IOException(MessageFormat.format(
+                bundle.getString("error.invalidFileType"), fileName));
+        }
+        
+        // Determine module name and type
+        ModuleFileInfo moduleInfo = parseModuleFileInfo(fileName, sourceFile);
+        
+        // Check if bundle type
+        if ("bundle".equals(moduleInfo.moduleType)) {
+            throw new IOException(bundle.getString("error.bundleNotSupported"));
+        }
+        
+        // Check if module already registered in database
+        InstalledModule existing = getInstalledModule(moduleInfo.moduleName);
+        if (existing != null) {
+            throw new IOException(MessageFormat.format(
+                bundle.getString("error.moduleAlreadyInstalled"), moduleInfo.moduleName));
+        }
+        
+        // Initialize installed database
+        try {
+            initializeInstalledDatabase();
+        } catch (IOException e) {
+            throw new IOException(MessageFormat.format(
+                bundle.getString("error.installedDbInit"), e.getMessage()), e);
+        }
+        
+        Map<String, Path> installedFiles = new LinkedHashMap<>();
+        
+        if (fileExtension.equals("zip")) {
+            // Handle ZIP file
+            installedFiles = installFromZipFile(sourceFile, moduleInfo);
+        } else {
+            // Handle SQL/SQLite3 file
+            installedFiles = installFromSqlFile(sourceFile, moduleInfo);
+        }
+        
+        // Record installation in database
+        recordFileInstallation(moduleInfo, installedFiles);
+        
+        if (verbosity > 0) {
+            System.out.println(MessageFormat.format(
+                bundle.getString("msg.fileInstallSuccess"), 
+                moduleInfo.moduleName, installedFiles.size()));
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Parse module information from file name and optionally from SQL info table.
+     */
+    private ModuleFileInfo parseModuleFileInfo(String fileName, Path sourceFile) throws IOException {
+        String baseName = fileName;
+        String extension = getFileExtension(fileName).toLowerCase();
+        
+        // Remove extension
+        if (extension.equals("zip")) {
+            baseName = fileName.substring(0, fileName.length() - 4);
+        } else if (extension.equals("sqlite3")) {
+            baseName = fileName.substring(0, fileName.length() - 8);
+        } else if (extension.equals("sql")) {
+            baseName = fileName.substring(0, fileName.length() - 4);
+        }
+        
+        // Determine module type from suffix
+        String moduleType = "bible";
+        String moduleName = baseName;
+        
+        for (String type : MODULE_TYPES) {
+            if (baseName.toLowerCase().endsWith("." + type.toLowerCase())) {
+                moduleType = type;
+                moduleName = baseName.substring(0, 
+                    baseName.length() - type.length() - 1);
+                break;
+            }
+        }
+        
+        // For ZIP files, module name is the zip file name (without .zip)
+        if (extension.equals("zip")) {
+            moduleName = fileName.substring(0, fileName.length() - 4);
+        }
+        
+        // Extract language and description from SQL info table if possible
+        String language = null;
+        String description = moduleName;
+        
+        if (!extension.equals("zip")) {
+            try {
+                ModuleSqlInfo sqlInfo = extractInfoFromSqlFile(sourceFile);
+                if (sqlInfo != null) {
+                    language = sqlInfo.language;
+                    description = sqlInfo.description != null ? 
+                        sqlInfo.description : moduleName;
+                }
+            } catch (Exception e) {
+                if (verbosity > 1) {
+                    System.err.println(MessageFormat.format(
+                        bundle.getString("warning.couldNotReadInfo"), 
+                        fileName, e.getMessage()));
+                }
+            }
+        }
+        
+        return new ModuleFileInfo(moduleName, moduleType, language, description);
+    }
+    
+    /**
+     * Extract language and description from SQL file's info table.
+     */
+    private ModuleSqlInfo extractInfoFromSqlFile(Path sqlFile) throws IOException {
+        String dbUrl = "jdbc:sqlite:" + sqlFile.toAbsolutePath();
+        
+        try (Connection conn = DriverManager.getConnection(dbUrl)) {
+            // Check if info table exists
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(
+                     "SELECT name FROM sqlite_master WHERE type='table' AND name='info'")) {
+                if (!rs.next()) {
+                    return null;
+                }
+            }
+            
+            String language = null;
+            String description = null;
+            
+            // Read from info table
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery("SELECT name, value FROM info")) {
+                while (rs.next()) {
+                    String name = rs.getString("name");
+                    String value = rs.getString("value");
+                    
+                    if ("language".equalsIgnoreCase(name)) {
+                        language = value;
+                    } else if ("description".equalsIgnoreCase(name)) {
+                        description = value;
+                    }
+                }
+            }
+            
+            return new ModuleSqlInfo(language, description);
+        } catch (SQLException e) {
+            throw new IOException("Failed to read SQL file info: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Install module from a SQL/SQLite3 file.
+     */
+    private Map<String, Path> installFromSqlFile(Path sourceFile, ModuleFileInfo moduleInfo) 
+            throws IOException {
+        Map<String, Path> installedFiles = new LinkedHashMap<>();
+        
+        // Construct target file name
+        String targetFileName;
+        if ("bible".equals(moduleInfo.moduleType)) {
+            targetFileName = moduleInfo.moduleName + ".SQLite3";
+        } else {
+            targetFileName = moduleInfo.moduleName + "." + 
+                moduleInfo.moduleType + ".SQLite3";
+        }
+        
+        Path targetPath = modulePath.resolve(targetFileName);
+        
+        // Check if file already exists in module folder
+        if (Files.exists(targetPath)) {
+            // Calculate MD5 of both files
+            String sourceMd5 = calculateMD5(sourceFile);
+            String targetMd5 = calculateMD5(targetPath);
+            
+            if (sourceMd5.equals(targetMd5)) {
+                // Files are identical, just add to database
+                if (verbosity > 0) {
+                    System.out.println(MessageFormat.format(
+                        bundle.getString("msg.fileAlreadyExistsIdentical"), 
+                        targetFileName));
+                }
+            } else {
+                // Files are different, refuse installation
+                throw new IOException(MessageFormat.format(
+                    bundle.getString("error.fileDifferentExists"), 
+                    targetFileName));
+            }
+        } else {
+            // Copy file to module directory
+            Files.copy(sourceFile, targetPath, StandardCopyOption.REPLACE_EXISTING);
+        }
+        
+        installedFiles.put(targetFileName, targetPath);
+        return installedFiles;
+    }
+    
+    /**
+     * Install module from a ZIP file.
+     */
+    private Map<String, Path> installFromZipFile(Path zipFile, ModuleFileInfo moduleInfo) 
+            throws IOException {
+        Map<String, Path> installedFiles = new LinkedHashMap<>();
+        
+        try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipFile))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                if (entry.isDirectory()) {
+                    continue;
+                }
+                
+                String originalFileName = entry.getName();
+                
+                // Determine target file name based on module name and type
+                String targetFileName = determineTargetFileName(
+                    originalFileName, moduleInfo.moduleName, moduleInfo.moduleType);
+                
+                Path targetPath = modulePath.resolve(targetFileName);
+                
+                // Check if file already exists
+                if (Files.exists(targetPath)) {
+                    // Calculate MD5 of zip entry and existing file
+                    byte[] zipContent = zis.readAllBytes();
+                    String zipMd5 = calculateMD5(zipContent);
+                    String existingMd5 = calculateMD5(targetPath);
+                    
+                    if (zipMd5.equals(existingMd5)) {
+                        if (verbosity > 0) {
+                            System.out.println(MessageFormat.format(
+                                bundle.getString("msg.fileAlreadyExistsIdentical"), 
+                                targetFileName));
+                        }
+                    } else {
+                        throw new IOException(MessageFormat.format(
+                            bundle.getString("error.fileDifferentExists"), 
+                            targetFileName));
+                    }
+                } else {
+                    // Need to re-read the entry since we consumed it for MD5
+                    Files.copy(zis, targetPath, StandardCopyOption.REPLACE_EXISTING);
+                }
+                
+                installedFiles.put(targetFileName, targetPath);
+                zis.closeEntry();
+            }
+        }
+        
+        // Extract info from first SQLite file if available
+        if (moduleInfo.language == null || moduleInfo.description == null) {
+            for (Path installedFile : installedFiles.values()) {
+                try {
+                    ModuleSqlInfo sqlInfo = extractInfoFromSqlFile(installedFile);
+                    if (sqlInfo != null) {
+                        if (moduleInfo.language == null) {
+                            moduleInfo.language = sqlInfo.language;
+                        }
+                        if (moduleInfo.description == null || 
+                            moduleInfo.description.equals(moduleInfo.moduleName)) {
+                            moduleInfo.description = sqlInfo.description != null ? 
+                                sqlInfo.description : moduleInfo.moduleName;
+                        }
+                        break;
+                    }
+                } catch (Exception e) {
+                    // Continue to next file
+                }
+            }
+        }
+        
+        return installedFiles;
+    }
+    
+    /**
+     * Determine target file name for a file from ZIP archive.
+     */
+    private String determineTargetFileName(String originalFileName, 
+                                           String moduleName, String moduleType) {
+        String lowerOriginal = originalFileName.toLowerCase();
+        
+        if (!lowerOriginal.endsWith(".sqlite3")) {
+            return originalFileName;
+        }
+        
+        // Check if it's a module type file
+        for (String type : MODULE_TYPES) {
+            if (lowerOriginal.contains("." + type.toLowerCase() + ".")) {
+                return moduleName + "." + type + ".SQLite3";
+            }
+        }
+        
+        // Default bible module
+        return moduleName + ".SQLite3";
+    }
+    
+    /**
+     * Calculate MD5 checksum of a file.
+     */
+    private String calculateMD5(Path filePath) throws IOException {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            try (InputStream is = Files.newInputStream(filePath);
+                 DigestInputStream dis = new DigestInputStream(is, md)) {
+                byte[] buffer = new byte[8192];
+                while (dis.read(buffer) != -1) {
+                    // Reading file to update digest
+                }
+            }
+            return bytesToHex(md.digest());
+        } catch (NoSuchAlgorithmException e) {
+            throw new IOException("MD5 algorithm not available", e);
+        }
+    }
+    
+    /**
+     * Calculate MD5 checksum of byte array.
+     */
+    private String calculateMD5(byte[] data) throws IOException {
+        try {
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            md.update(data);
+            return bytesToHex(md.digest());
+        } catch (NoSuchAlgorithmException e) {
+            throw new IOException("MD5 algorithm not available", e);
+        }
+    }
+    
+    /**
+     * Convert byte array to hex string.
+     */
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
+    
+    /**
+     * Record installation of a module from file.
+     */
+    private void recordFileInstallation(ModuleFileInfo moduleInfo, 
+                                        Map<String, Path> files) throws IOException {
+        Path installedDbPath = modulePath.resolve("mybible_installed.db");
+        
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + installedDbPath)) {
+            conn.setAutoCommit(false);
+            
+            String modSql = "INSERT INTO installed_modules " +
+                "(name, language, description, update_date, install_date) VALUES (?, ?, ?, ?, ?)";
+            
+            try (PreparedStatement pstmt = conn.prepareStatement(modSql)) {
+                pstmt.setString(1, moduleInfo.moduleName);
+                pstmt.setString(2, moduleInfo.language);
+                pstmt.setString(3, moduleInfo.description);
+                pstmt.setString(4, "0.0.1");  // Version for file installations
+                pstmt.setString(5, Instant.now().toString());
+                pstmt.executeUpdate();
+            }
+            
+            String fileSql = "INSERT INTO installed_files " +
+                "(module_name, file_name, file_path) VALUES (?, ?, ?)";
+            
+            try (PreparedStatement pstmt = conn.prepareStatement(fileSql)) {
+                for (Map.Entry<String, Path> entry : files.entrySet()) {
+                    pstmt.setString(1, moduleInfo.moduleName);
+                    pstmt.setString(2, entry.getKey());
+                    pstmt.setString(3, entry.getValue().toString());
+                    pstmt.addBatch();
+                }
+                pstmt.executeBatch();
+            }
+            
+            conn.commit();
+        } catch (SQLException e) {
+            throw new IOException(MessageFormat.format(
+                bundle.getString("error.recordInstall"), e.getMessage()), e);
+        }
+    }
+    
+    /**
+     * Get file extension from file name.
+     */
+    private String getFileExtension(String fileName) {
+        int dotIndex = fileName.lastIndexOf('.');
+        if (dotIndex > 0 && dotIndex < fileName.length() - 1) {
+            return fileName.substring(dotIndex + 1);
+        }
+        return "";
+    }
+    
+    // Helper classes
+    private static class ModuleFileInfo {
+        String moduleName;
+        String moduleType;
+        String language;
+        String description;
+        
+        ModuleFileInfo(String moduleName, String moduleType, 
+                       String language, String description) {
+            this.moduleName = moduleName;
+            this.moduleType = moduleType;
+            this.language = language;
+            this.description = description;
+        }
+    }
+    
+    private static class ModuleSqlInfo {
+        String language;
+        String description;
+        
+        ModuleSqlInfo(String language, String description) {
+            this.language = language;
+            this.description = description;
         }
     }
 

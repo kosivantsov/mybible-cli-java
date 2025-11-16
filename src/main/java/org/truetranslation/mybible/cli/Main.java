@@ -7,23 +7,24 @@ import com.google.gson.GsonBuilder;
 import java.awt.Desktop;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.InputStreamReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.text.MessageFormat;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.concurrent.Callable;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.ResourceBundle;
+import java.util.concurrent.Callable;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import javax.swing.*;
 
 import org.truetranslation.mybible.core.*;
@@ -304,6 +305,9 @@ public class Main implements Callable<Integer> {
         @Option(names = {"-i", "--install"}, descriptionKey = "install")
         private String[] installNames;
 
+        @Option(names = {"--install-file"}, paramLabel = "<path>", descriptionKey = "installFile")
+        private String installFile;
+
         @Option(names = {"-r", "--remove"}, descriptionKey = "remove")
         private String[] removeNames;
 
@@ -313,7 +317,7 @@ public class Main implements Callable<Integer> {
         @Option(names = {"--upgrade-all"}, descriptionKey = "upgradeAll")
         private boolean upgradeAll;
 
-        @Option(names = {"--info"}, descriptionKey = "info")
+        @Option(names = {"-I", "--info"}, descriptionKey = "info")
         private String infoName;
 
         @Option(names = {"--versions"}, descriptionKey = "versions")
@@ -325,10 +329,10 @@ public class Main implements Callable<Integer> {
         @Option(names = {"--reinstall"}, descriptionKey = "reinstall")
         private boolean reinstall;
 
-        @Option(names = {"--lang", "--language"}, descriptionKey = "language")
+        @Option(names = {"-L", "--lang", "--language"}, descriptionKey = "language")
         private String language;
 
-        @Option(names = {"--type"}, descriptionKey = "type")
+        @Option(names = {"-t", "--type"}, descriptionKey = "type")
         private String moduleType;
 
         @Option(names = {"-n", "--name"}, descriptionKey = "name")
@@ -380,6 +384,11 @@ public class Main implements Callable<Integer> {
 
                 if (installNames != null && installNames.length > 0) {
                     return installModules(moduleManager, finalVerbosity);
+                }
+
+                if (installFile != null) {
+                    moduleManager.installFromFile(installFile);
+                    return 0;
                 }
 
                 if (removeNames != null && removeNames.length > 0) {
@@ -704,6 +713,9 @@ public class Main implements Callable<Integer> {
         @Option(names = {"-f", "--filter"}, paramLabel = "<text>", descriptionKey = "filter")
         private String nameFilter;
 
+        @Option(names = {"-L", "--language"}, paramLabel = "<code>", descriptionKey = "language")
+        private String languageFilter;
+
         @Option(names = {"--all"}, descriptionKey = "all")
         private boolean applyToAll;
 
@@ -986,7 +998,17 @@ public class Main implements Callable<Integer> {
             System.out.println();
 
             for (ExtensionManager.ExtensionInfo ext : extensions) {
-                System.out.println(ext.toString());
+                String languages = ext.manifest.languages != null && !ext.manifest.languages.isEmpty()
+                    ? String.join(", ", ext.manifest.languages)
+                    : "N/A";
+
+                System.out.println(String.format("%s\t%s\t%s\tv%s\t%s",
+                    ext.manifest.name,
+                    ext.manifest.type,
+                    languages,
+                    ext.manifest.version,
+                    ext.manifest.description != null ? ext.manifest.description : ""
+                ));
             }
 
             return 0;
@@ -994,7 +1016,7 @@ public class Main implements Callable<Integer> {
 
         private int listAvailableExtensions(ExtensionManager extensionManager) throws IOException {
             List<ExtensionManager.RegistryExtension> extensions = 
-                extensionManager.listAvailableExtensions(typeFilter, nameFilter);
+                extensionManager.listAvailableExtensions(typeFilter, nameFilter, languageFilter);
 
             if (extensions.isEmpty()) {
                 System.out.println(bundle.getString("msg.ext.noAvailableExtensions"));
@@ -1014,10 +1036,26 @@ public class Main implements Callable<Integer> {
                     nameFilter
                 ));
             }
+            if (languageFilter != null) {
+                System.out.println(MessageFormat.format(
+                    bundle.getString("msg.ext.filteredByLanguage"),
+                    languageFilter
+                ));
+            }
             System.out.println();
 
             for (ExtensionManager.RegistryExtension ext : extensions) {
-                System.out.println(ext.toString());
+                String languages = ext.languages != null && !ext.languages.isEmpty()
+                    ? String.join(", ", ext.languages)
+                    : "N/A";
+
+                System.out.println(String.format("%s\t%s\t%s\tv%s\t%s",
+                    ext.name,
+                    ext.type,
+                    languages,
+                    ext.version,
+                    ext.description != null ? ext.description : ""
+                ));
             }
 
             System.out.println();
@@ -1030,9 +1068,9 @@ public class Main implements Callable<Integer> {
         }
 
         private int listUpgradableExtensions(ExtensionManager extensionManager) throws IOException {
-            List<ExtensionManager.ExtensionInfo> extensions = extensionManager.listUpgradableExtensions();
+            List<ExtensionManager.ExtensionInfo> upgradable = extensionManager.listUpgradableExtensions();
 
-            if (extensions.isEmpty()) {
+            if (upgradable.isEmpty()) {
                 System.out.println(bundle.getString("msg.ext.noUpgradableExtensions"));
                 return 0;
             }
@@ -1040,14 +1078,34 @@ public class Main implements Callable<Integer> {
             System.out.println(bundle.getString("msg.ext.upgradableExtensions"));
             System.out.println();
 
-            for (ExtensionManager.ExtensionInfo ext : extensions) {
-                System.out.println(ext.toString());
+            // Get available extensions to find new versions
+            List<ExtensionManager.RegistryExtension> available = extensionManager.listAvailableExtensions(null, null, null);
+            Map<String, String> availableVersions = available.stream()
+                .collect(Collectors.toMap(ext -> ext.name, ext -> ext.version));
+
+            for (ExtensionManager.ExtensionInfo ext : upgradable) {
+                String languages = ext.manifest.languages != null && !ext.manifest.languages.isEmpty()
+                    ? String.join(", ", ext.manifest.languages)
+                    : "N/A";
+
+                String newVersion = availableVersions.get(ext.manifest.name);
+                String versionInfo = newVersion != null 
+                    ? String.format("v%s → v%s", ext.manifest.version, newVersion)
+                    : "v" + ext.manifest.version;
+
+                System.out.println(String.format("%s\t%s\t%s\t%s\t%s",
+                    ext.manifest.name,
+                    ext.manifest.type,
+                    languages,
+                    versionInfo,
+                    ext.manifest.description != null ? ext.manifest.description : ""
+                ));
             }
 
             System.out.println();
             System.out.println(MessageFormat.format(
                 bundle.getString("msg.ext.totalUpgradable"),
-                extensions.size()
+                upgradable.size()
             ));
 
             return 0;
@@ -1136,6 +1194,13 @@ public class Main implements Callable<Integer> {
                 ));
             }
 
+            if (ext.manifest.languages != null && !ext.manifest.languages.isEmpty()) {
+                System.out.println(MessageFormat.format(
+                    bundle.getString("msg.ext.info.languages"),
+                    String.join(", ", ext.manifest.languages)
+                ));
+            }
+
             System.out.println();
             System.out.println(bundle.getString("msg.ext.info.status") + " " + 
                 bundle.getString("msg.ext.info.installed"));
@@ -1180,6 +1245,13 @@ public class Main implements Callable<Integer> {
                 bundle.getString("msg.ext.info.type"),
                 ext.type
             ));
+
+            if (ext.languages != null && !ext.languages.isEmpty()) {
+                System.out.println(MessageFormat.format(
+                    bundle.getString("msg.ext.info.languages"),
+                    String.join(", ", ext.languages)
+                ));
+            }
 
             if (ext.description != null) {
                 System.out.println(MessageFormat.format(

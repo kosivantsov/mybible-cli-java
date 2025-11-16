@@ -37,6 +37,7 @@ public class GuiExtensionManager extends JDialog {
 
     private JComboBox<String> typeFilter;
     private JTextField nameFilter;
+    private JTextField languageFilter;
 
     private JButton actionButton;
     private JButton infoButton;
@@ -127,7 +128,7 @@ public class GuiExtensionManager extends JDialog {
                                                            boolean isSelected, boolean hasFocus,
                                                            int row, int column) {
                 super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                
+
                 int modelRow = table.convertRowIndexToModel(row);
                 if (tableModel.isInstalled(modelRow)) {
                     setText("✓ " + value.toString());
@@ -136,13 +137,14 @@ public class GuiExtensionManager extends JDialog {
                     setText(value.toString());
                     setForeground(isSelected ? table.getSelectionForeground() : table.getForeground());
                 }
-                
+
                 return this;
             }
         });
 
         typeFilter = new JComboBox<>(EXTENSION_TYPES);
         nameFilter = new JTextField(20);
+        languageFilter = new JTextField(10);
 
         actionButton = new JButton(bundle.getString("button.extensions.uninstall"));
         actionButton.setEnabled(false);
@@ -168,6 +170,8 @@ public class GuiExtensionManager extends JDialog {
         filterPanel.add(typeFilter);
         filterPanel.add(new JLabel(bundle.getString("label.extensions.name")));
         filterPanel.add(nameFilter);
+        filterPanel.add(new JLabel(bundle.getString("label.extensions.language")));
+        filterPanel.add(languageFilter);
 
         JButton filterButton = new JButton(bundle.getString("button.filter"));
         filterButton.addActionListener(e -> applyFilters());
@@ -176,12 +180,12 @@ public class GuiExtensionManager extends JDialog {
         JPanel bottomPanel = new JPanel(new BorderLayout());
 
         JPanel leftButtonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
-        leftButtonPanel.add(updateButton);
+        leftButtonPanel.add(actionButton);
         leftButtonPanel.add(installFromFileButton);
         leftButtonPanel.add(infoButton);
 
         JPanel rightButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
-        rightButtonPanel.add(actionButton);
+        rightButtonPanel.add(updateButton);
         rightButtonPanel.add(closeButton);
 
         bottomPanel.add(leftButtonPanel, BorderLayout.WEST);
@@ -364,6 +368,7 @@ public class GuiExtensionManager extends JDialog {
         try {
             String typeFilterStr = getSelectedType();
             String nameFilterStr = nameFilter.getText().trim();
+            String languageFilterStr = languageFilter.getText().trim();
 
             switch (currentMode) {
                 case INSTALLED:
@@ -377,6 +382,11 @@ public class GuiExtensionManager extends JDialog {
                             !ext.manifest.name.toLowerCase().contains(nameFilterStr.toLowerCase())) {
                             continue;
                         }
+                        if (!languageFilterStr.isEmpty() && ext.manifest.langCodes != null &&
+                            ext.manifest.langCodes.stream().noneMatch(code -> 
+                                code.toLowerCase().equals(languageFilterStr.toLowerCase()))) {
+                            continue;
+                        }
                         tableModel.addExtension(ext, false);
                     }
                     break;
@@ -387,7 +397,9 @@ public class GuiExtensionManager extends JDialog {
                         .collect(Collectors.toMap(ext -> ext.manifest.name, ext -> ext.manifest.version));
 
                     List<RegistryExtension> available = extensionManager.listAvailableExtensions(
-                        typeFilterStr, nameFilterStr.isEmpty() ? null : nameFilterStr);
+                        typeFilterStr, 
+                        nameFilterStr.isEmpty() ? null : nameFilterStr,
+                        languageFilterStr.isEmpty() ? null : languageFilterStr);
                     for (RegistryExtension ext : available) {
                         boolean isInstalled = installedMap.containsKey(ext.name);
                         tableModel.addExtension(ext, isInstalled);
@@ -396,6 +408,12 @@ public class GuiExtensionManager extends JDialog {
 
                 case UPGRADABLE:
                     List<ExtensionInfo> upgradable = extensionManager.listUpgradableExtensions();
+                    
+                    // Get available versions for upgrade info
+                    List<RegistryExtension> availableForUpgrade = extensionManager.listAvailableExtensions(null, null, null);
+                    Map<String, String> availableVersions = availableForUpgrade.stream()
+                        .collect(Collectors.toMap(ext -> ext.name, ext -> ext.version));
+                    
                     for (ExtensionInfo ext : upgradable) {
                         if (typeFilterStr != null && ext.manifest.type != null && 
                             !ext.manifest.type.equalsIgnoreCase(typeFilterStr)) {
@@ -405,7 +423,18 @@ public class GuiExtensionManager extends JDialog {
                             !ext.manifest.name.toLowerCase().contains(nameFilterStr.toLowerCase())) {
                             continue;
                         }
-                        tableModel.addExtension(ext, false);
+                        if (!languageFilterStr.isEmpty() && ext.manifest.langCodes != null &&
+                            ext.manifest.langCodes.stream().noneMatch(code -> 
+                                code.toLowerCase().equals(languageFilterStr.toLowerCase()))) {
+                            continue;
+                        }
+                        
+                        String newVersion = availableVersions.get(ext.manifest.name);
+                        if (newVersion != null) {
+                            tableModel.addUpgradableExtension(ext, newVersion);
+                        } else {
+                            tableModel.addExtension(ext, false);
+                        }
                     }
                     break;
             }
@@ -705,38 +734,65 @@ public class GuiExtensionManager extends JDialog {
         if (extensionObj instanceof ExtensionInfo) {
             ExtensionInfo ext = (ExtensionInfo) extensionObj;
             info.append("<h3>").append(ext.manifest.name).append("</h3>");
-            info.append("<p><b>").append(bundle.getString("label.extensions.version")).append(":</b> ")
+            info.append("<p><b>").append(bundle.getString("label.extensions.version")).append("</b> ")
                 .append(ext.manifest.version).append("</p>");
-            info.append("<p><b>").append(bundle.getString("label.extensions.type")).append(":</b> ")
+            info.append("<p><b>").append(bundle.getString("label.extensions.type")).append("</b> ")
                 .append(ext.manifest.type != null ? ext.manifest.type : "unknown").append("</p>");
 
             if (ext.manifest.author != null) {
-                info.append("<p><b>").append(bundle.getString("label.extensions.author")).append(":</b> ")
+                info.append("<p><b>").append(bundle.getString("label.extensions.author")).append("</b> ")
                     .append(ext.manifest.author).append("</p>");
             }
 
+            if (ext.manifest.languages != null && !ext.manifest.languages.isEmpty()) {
+                info.append("<p><b>").append(bundle.getString("label.extensions.languages")).append("</b> ")
+                    .append(String.join(", ", ext.manifest.languages)).append("</p>");
+            }
+
             if (ext.manifest.description != null) {
-                info.append("<p><b>").append(bundle.getString("label.extensions.description")).append(":</b><br>")
+                info.append("<p><b>").append(bundle.getString("label.extensions.description")).append("</b><br>")
                     .append(ext.manifest.description).append("</p>");
             }
 
             info.append("<p><b>Status:</b> Installed</p>");
+            
+            // Check if update is available
+            try {
+                List<RegistryExtension> available = extensionManager.listAvailableExtensions(null, ext.manifest.name, null);
+                RegistryExtension availableExt = available.stream()
+                    .filter(e -> e.name.equals(ext.manifest.name))
+                    .findFirst()
+                    .orElse(null);
+                
+                if (availableExt != null && !availableExt.version.equals(ext.manifest.version)) {
+                    info.append("<p><b style='color: #0066cc;'>")
+                        .append(bundle.getString("label.extensions.updateAvailable"))
+                        .append("</b> v").append(availableExt.version).append("</p>");
+                }
+            } catch (IOException e) {
+                // Silently ignore - just won't show update info
+            }
 
         } else if (extensionObj instanceof RegistryExtension) {
             RegistryExtension ext = (RegistryExtension) extensionObj;
             info.append("<h3>").append(ext.name).append("</h3>");
-            info.append("<p><b>").append(bundle.getString("label.extensions.version")).append(":</b> ")
+            info.append("<p><b>").append(bundle.getString("label.extensions.version")).append("</b> ")
                 .append(ext.version).append("</p>");
-            info.append("<p><b>").append(bundle.getString("label.extensions.type")).append(":</b> ")
+            info.append("<p><b>").append(bundle.getString("label.extensions.type")).append("</b> ")
                 .append(ext.type).append("</p>");
 
             if (ext.author != null) {
-                info.append("<p><b>").append(bundle.getString("label.extensions.author")).append(":</b> ")
+                info.append("<p><b>").append(bundle.getString("label.extensions.author")).append("</b> ")
                     .append(ext.author).append("</p>");
             }
 
+            if (ext.languages != null && !ext.languages.isEmpty()) {
+                info.append("<p><b>").append(bundle.getString("label.extensions.languages")).append("</b> ")
+                    .append(String.join(", ", ext.languages)).append("</p>");
+            }
+
             if (ext.description != null) {
-                info.append("<p><b>").append(bundle.getString("label.extensions.description")).append(":</b><br>")
+                info.append("<p><b>").append(bundle.getString("label.extensions.description")).append("</b><br>")
                     .append(ext.description).append("</p>");
             }
 
@@ -771,7 +827,8 @@ public class GuiExtensionManager extends JDialog {
             "✓",
             bundle.getString("dialog.extensions.name"),
             bundle.getString("dialog.extensions.type"),
-            bundle.getString("dialog.extensions.version")
+            bundle.getString("dialog.extensions.version"),
+            bundle.getString("dialog.extensions.languages")
         };
         private final List<ExtensionRow> rows = new ArrayList<>();
 
@@ -811,12 +868,9 @@ public class GuiExtensionManager extends JDialog {
                 case 1: return row.name;
                 case 2: return row.type;
                 case 3: return row.version;
+                case 4: return row.languages;
                 default: return null;
             }
-        }
-
-        public boolean isInstalled(int row) {
-            return rows.get(row).isInstalled;
         }
 
         @Override
@@ -828,14 +882,28 @@ public class GuiExtensionManager extends JDialog {
         }
 
         public void addExtension(ExtensionInfo ext, boolean isInstalled) {
+            String languages = ext.manifest.languages != null && !ext.manifest.languages.isEmpty() 
+                ? String.join(", ", ext.manifest.languages) : "";
             rows.add(new ExtensionRow(ext.manifest.name, 
                 ext.manifest.type != null ? ext.manifest.type : "unknown",
-                ext.manifest.version, ext, isInstalled));
+                ext.manifest.version, languages, ext, isInstalled));
             fireTableRowsInserted(rows.size() - 1, rows.size() - 1);
         }
 
         public void addExtension(RegistryExtension ext, boolean isInstalled) {
-            rows.add(new ExtensionRow(ext.name, ext.type, ext.version, ext, isInstalled));
+            String languages = ext.languages != null && !ext.languages.isEmpty() 
+                ? String.join(", ", ext.languages) : "";
+            rows.add(new ExtensionRow(ext.name, ext.type, ext.version, languages, ext, isInstalled));
+            fireTableRowsInserted(rows.size() - 1, rows.size() - 1);
+        }
+
+        public void addUpgradableExtension(ExtensionInfo ext, String newVersion) {
+            String languages = ext.manifest.languages != null && !ext.manifest.languages.isEmpty() 
+                ? String.join(", ", ext.manifest.languages) : "";
+            String versionInfo = String.format("%s → %s", ext.manifest.version, newVersion);
+            rows.add(new ExtensionRow(ext.manifest.name, 
+                ext.manifest.type != null ? ext.manifest.type : "unknown",
+                versionInfo, languages, ext, false));
             fireTableRowsInserted(rows.size() - 1, rows.size() - 1);
         }
 
@@ -877,6 +945,10 @@ public class GuiExtensionManager extends JDialog {
         public Object getExtensionAt(int row) {
             return rows.get(row).extension;
         }
+
+        public boolean isInstalled(int row) {
+            return rows.get(row).isInstalled;
+        }
     }
 
     private static class ExtensionRow {
@@ -884,14 +956,16 @@ public class GuiExtensionManager extends JDialog {
         String name;
         String type;
         String version;
+        String languages;
         Object extension;
         boolean isInstalled;
 
-        ExtensionRow(String name, String type, String version, Object extension, boolean isInstalled) {
+        ExtensionRow(String name, String type, String version, String languages, Object extension, boolean isInstalled) {
             this.selected = false;
             this.name = name;
             this.type = type;
             this.version = version;
+            this.languages = languages;
             this.extension = extension;
             this.isInstalled = isInstalled;
         }

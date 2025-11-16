@@ -74,7 +74,7 @@ public class ExtensionManager {
     private void initializeDefaultRegistry() throws IOException {
         Files.createDirectories(sourcesDir);
         Path defaultRegistry = sourcesDir.resolve(DEFAULT_REGISTRY_NAME);
-        
+
         if (!Files.exists(defaultRegistry)) {
             Files.writeString(defaultRegistry, DEFAULT_REGISTRY_URL, StandardCharsets.UTF_8);
             if (verbosity > 0) {
@@ -85,7 +85,7 @@ public class ExtensionManager {
 
     public void updateRegistries() throws IOException {
         Files.createDirectories(cacheDir);
-        
+
         if (!Files.exists(sourcesDir)) {
             throw new IOException(bundle.getString("error.extensionmgr.noSources"));
         }
@@ -98,12 +98,12 @@ public class ExtensionManager {
             for (Path registryFile : registries) {
                 String url = Files.readString(registryFile, StandardCharsets.UTF_8).trim();
                 String registryName = registryFile.getFileName().toString().replace(".extregistry", "");
-                
+
                 if (verbosity > 0) {
                     System.out.println(MessageFormat.format(
                         bundle.getString("msg.extensionmgr.updatingRegistry"), registryName));
                 }
-                
+
                 downloadRegistry(url, registryName);
             }
         }
@@ -128,9 +128,9 @@ public class ExtensionManager {
         }
     }
 
-    public List<RegistryExtension> listAvailableExtensions(String typeFilter, String nameFilter) throws IOException {
+    public List<RegistryExtension> listAvailableExtensions(String typeFilter, String nameFilter, String languageFilter) throws IOException {
         List<RegistryExtension> allExtensions = new ArrayList<>();
-        
+
         if (!Files.exists(cacheDir)) {
             throw new IOException(bundle.getString("error.extensionmgr.noCachedRegistries"));
         }
@@ -144,7 +144,7 @@ public class ExtensionManager {
                 try {
                     String json = Files.readString(cacheFile, StandardCharsets.UTF_8);
                     ExtensionRegistry registry = new Gson().fromJson(json, ExtensionRegistry.class);
-                    
+
                     if (registry.extensions != null) {
                         allExtensions.addAll(registry.extensions);
                     }
@@ -158,11 +158,11 @@ public class ExtensionManager {
         }
 
         Stream<RegistryExtension> stream = allExtensions.stream();
-        
+
         if (typeFilter != null && !typeFilter.isEmpty()) {
             stream = stream.filter(ext -> ext.type != null && ext.type.equalsIgnoreCase(typeFilter));
         }
-        
+
         if (nameFilter != null && !nameFilter.isEmpty()) {
             String lowerFilter = nameFilter.toLowerCase();
             stream = stream.filter(ext -> 
@@ -171,7 +171,19 @@ public class ExtensionManager {
             );
         }
 
+        if (languageFilter != null && !languageFilter.isEmpty()) {
+            String lowerLangFilter = languageFilter.toLowerCase();
+            stream = stream.filter(ext -> 
+                ext.langCodes != null && ext.langCodes.stream()
+                    .anyMatch(code -> code.toLowerCase().equals(lowerLangFilter))
+            );
+        }
+
         return stream.collect(Collectors.toList());
+    }
+
+    public List<RegistryExtension> listAvailableExtensions(String typeFilter, String nameFilter) throws IOException {
+        return listAvailableExtensions(typeFilter, nameFilter, null);
     }
 
     public List<ExtensionInfo> listInstalledExtensions() throws IOException {
@@ -288,7 +300,7 @@ public class ExtensionManager {
 
     public void installExtension(String extensionNameOrPath) throws IOException, ExtensionValidationException {
         Path zipPath = Path.of(extensionNameOrPath);
-        
+
         if (Files.exists(zipPath)) {
             installExtensionFromFile(zipPath);
         } else {
@@ -313,12 +325,12 @@ public class ExtensionManager {
         }
 
         Path tempZip = downloadExtension(target.downloadUrl);
-        
+
         try {
             if (target.sha256 != null) {
                 verifyChecksum(tempZip, target.sha256);
             }
-            
+
             installExtensionFromFile(tempZip);
         } finally {
             Files.deleteIfExists(tempZip);
@@ -333,7 +345,7 @@ public class ExtensionManager {
         conn.setReadTimeout(30000);
 
         Path tempFile = Files.createTempFile("extension-", ".zip");
-        
+
         try (InputStream in = conn.getInputStream()) {
             Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
         } finally {
@@ -348,19 +360,19 @@ public class ExtensionManager {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] fileBytes = Files.readAllBytes(file);
             byte[] hashBytes = digest.digest(fileBytes);
-            
+
             StringBuilder sb = new StringBuilder();
             for (byte b : hashBytes) {
                 sb.append(String.format("%02x", b));
             }
             String actualSha256 = sb.toString();
-            
+
             if (!actualSha256.equals(expectedSha256)) {
                 throw new ExtensionValidationException(
                     bundle.getString("error.extensionmgr.checksumFailed")
                 );
             }
-            
+
             if (verbosity > 0) {
                 System.out.println(bundle.getString("msg.extensionmgr.checksumVerified"));
             }
@@ -666,6 +678,32 @@ public class ExtensionManager {
             ));
         }
 
+        // Validate language fields for applicable types
+        if (manifest.type.equals("localization") || manifest.type.equals("mapping") || manifest.type.equals("bundle")) {
+            boolean hasLanguages = manifest.languages != null && !manifest.languages.isEmpty();
+            boolean hasLangCodes = manifest.langCodes != null && !manifest.langCodes.isEmpty();
+
+            if (hasLanguages != hasLangCodes) {
+                throw new ExtensionValidationException(
+                    bundle.getString("error.extensionmgr.languageFieldsMismatch"));
+            }
+
+            if (hasLanguages && manifest.languages.size() != manifest.langCodes.size()) {
+                throw new ExtensionValidationException(
+                    bundle.getString("error.extensionmgr.languageCountMismatch"));
+            }
+
+            // Validate BCP47 format
+            if (hasLangCodes) {
+                for (String code : manifest.langCodes) {
+                    if (!code.matches("^[a-z]{2,3}(-[A-Z]{2})?(-[a-z]+)?$")) {
+                        throw new ExtensionValidationException(MessageFormat.format(
+                            bundle.getString("error.extensionmgr.invalidLanguageCode"), code));
+                    }
+                }
+            }
+        }
+
         if (manifest.files == null) {
             throw new ExtensionValidationException(bundle.getString("error.extensionmgr.filesRequired"));
         }
@@ -773,6 +811,9 @@ public class ExtensionManager {
         public String description;
         public String author;
         public ExtensionFiles files;
+        public List<String> languages;
+        @SerializedName("lang_codes")
+        public List<String> langCodes;
     }
 
     public static class ExtensionFiles {
@@ -795,6 +836,9 @@ public class ExtensionManager {
         public String description;
         public String author;
         public ExtensionFiles files;
+        public List<String> languages;
+        @SerializedName("lang_codes")
+        public List<String> langCodes;
         @SerializedName("download_url")
         public String downloadUrl;
         public Long size;
@@ -806,6 +850,9 @@ public class ExtensionManager {
         public String toString() {
             StringBuilder sb = new StringBuilder();
             sb.append(String.format("%s v%s (%s)", name, version, type));
+            if (languages != null && !languages.isEmpty()) {
+                sb.append(" [").append(String.join(", ", languages)).append("]");
+            }
             if (description != null) {
                 sb.append(" - ").append(description);
             }
