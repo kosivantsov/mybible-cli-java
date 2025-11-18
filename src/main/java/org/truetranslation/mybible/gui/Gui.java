@@ -400,13 +400,55 @@ public class Gui extends JFrame {
 
     private void openConfigurationDialog() {
         ConfigurationDialog dialog = new ConfigurationDialog(this, guiConfigManager);
+        dialog.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent e) {
+                refreshModuleList();
+            }
+        });
         dialog.setVisible(true);
         this.guiConfig = guiConfigManager.getConfig();
         updateAndDisplayVerseData();
     }
 
+    public void refreshModuleList() {
+        try {
+            String currentSelectionName = null;
+            if (moduleComboBox.getSelectedItem() != null) {
+                // Get the name from the currently selected Module
+                currentSelectionName = ((ModuleScanner.Module) moduleComboBox.getSelectedItem()).getName();
+            }
+
+            moduleComboBox.removeAllItems();
+
+            Path modulePath = Paths.get(configManager.getModulesPath());
+            if (modulePath != null && Files.exists(modulePath)) {
+                ModuleScanner scanner = new ModuleScanner();
+                List<ModuleScanner.Module> modules = scanner.findModules(modulePath);
+                
+                for (ModuleScanner.Module module : modules) {
+                    moduleComboBox.addItem(module);
+                }
+
+                // Restore selection
+                if (currentSelectionName != null) {
+                    for (int i = 0; i < moduleComboBox.getItemCount(); i++) {
+                        if (moduleComboBox.getItemAt(i).getName().equals(currentSelectionName)) {
+                            moduleComboBox.setSelectedIndex(i);
+                            break;
+                        }
+                    }
+                } else if (moduleComboBox.getItemCount() > 0) {
+                    moduleComboBox.setSelectedIndex(0);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to refresh module list: " + e.getMessage());
+        }
+    }
+
     private void openMapBrowser() {
-            JFileChooser chooser = new JFileChooser(configManager.getDefaultConfigDir().toFile());
+            JFileChooser chooser = new JFileChooser(configManager.getDefaultConfigDir().resolve("mapping").toFile());
             chooser.setFileFilter(new FileNameExtensionFilter("JSON Mapping Files", "json"));
             int result = chooser.showOpenDialog(this);
             if (result == JFileChooser.APPROVE_OPTION) {

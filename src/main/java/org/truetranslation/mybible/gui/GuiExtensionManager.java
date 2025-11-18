@@ -295,6 +295,14 @@ public class GuiExtensionManager extends JDialog {
             }
         });
 
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_4, modifierKey), "focusTable");
+        actionMap.put("focusTable", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                extensionTable.requestFocusInWindow();
+            }
+        });
+
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F, modifierKey), "filter");
         actionMap.put("filter", new AbstractAction() {
             @Override
@@ -353,11 +361,11 @@ public class GuiExtensionManager extends JDialog {
             }
         });
 
-        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_L, modifierKey), "focusTable");
-        actionMap.put("focusTable", new AbstractAction() {
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_L, modifierKey), "focusLanguage");
+        actionMap.put("focusLanguage", new AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                extensionTable.requestFocusInWindow();
+                languageFilter.requestFocusInWindow();
             }
         });
     }
@@ -754,8 +762,9 @@ public class GuiExtensionManager extends JDialog {
                     .append(ext.manifest.description).append("</p>");
             }
 
-            info.append("<p><b>Status:</b> Installed</p>");
-            
+            info.append("<p><b>").append(bundle.getString("label.extensions.status")).append("</b> ")
+                .append(bundle.getString("status.extensions.installed")).append("</p>");
+
             // Check if update is available
             try {
                 List<RegistryExtension> available = extensionManager.listAvailableExtensions(null, ext.manifest.name, null);
@@ -797,10 +806,12 @@ public class GuiExtensionManager extends JDialog {
             }
 
             if (ext.size != null) {
-                info.append("<p><b>Size:</b> ").append(ext.size / 1024.0).append(" KB</p>");
+                info.append("<p><b>").append(bundle.getString("label.extensions.size")).append("</b> ")
+                    .append(ext.size / 1024.0).append(" KB</p>");
             }
-
-            info.append("<p><b>Status:</b> Available</p>");
+            
+            info.append("<p><b>").append(bundle.getString("label.extensions.status")).append("</b> ")
+                .append(bundle.getString("status.extensions.available")).append("</p>");
         }
 
         info.append("</body></html>");

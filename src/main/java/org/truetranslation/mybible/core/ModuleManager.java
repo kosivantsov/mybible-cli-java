@@ -6,6 +6,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipFile;
+
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -71,9 +74,9 @@ public class ModuleManager {
         this.cacheDir = configDir.resolve(".cache");
         this.downloadCacheDir = cacheDir.resolve("downloads");
         this.registryCacheDir = cacheDir.resolve("registries");
-        this.cacheDbPath = configDir.resolve("cache.db");
+        this.cacheDbPath = cacheDir.resolve("cache.db");
         this.configFilePath = configDir.resolve("module_manager_config.json");
-        this.etagCachePath = configDir.resolve("etags.json");
+        this.etagCachePath = cacheDir.resolve("etags.json");
 
         String modulePathStr = configManager.getModulesPath();
         if (modulePathStr == null || modulePathStr.isEmpty()) {
@@ -144,14 +147,16 @@ public class ModuleManager {
 
     private void initializeInstalledDatabase() throws IOException {
         Path installedDbPath = modulePath.resolve("mybible_installed.db");
+
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + installedDbPath)) {
             try (Statement stmt = conn.createStatement()) {
                 stmt.execute("CREATE TABLE IF NOT EXISTS installed_modules (" +
                     "name TEXT PRIMARY KEY, " +
                     "language TEXT, " +
                     "description TEXT NOT NULL, " +
-                    "update_date TEXT NOT NULL, " +
-                    "install_date TEXT NOT NULL)");
+                    "type TEXT NOT NULL DEFAULT 'bible', " +  // ADD THIS COLUMN
+                    "updatedate TEXT NOT NULL, " +
+                    "installdate TEXT NOT NULL)");
 
                 stmt.execute("CREATE TABLE IF NOT EXISTS installed_files (" +
                     "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -161,9 +166,17 @@ public class ModuleManager {
                     "FOREIGN KEY (module_name) REFERENCES installed_modules(name) ON DELETE CASCADE)");
 
                 stmt.execute("CREATE INDEX IF NOT EXISTS idx_installed_module ON installed_files(module_name)");
+
+                // Add migration for existing databases that don't have the type column
+                try {
+                    stmt.execute("ALTER TABLE installed_modules ADD COLUMN type TEXT NOT NULL DEFAULT 'bible'");
+                } catch (SQLException e) {
+                    // Column already exists, ignore
+                }
             }
         } catch (SQLException e) {
-            throw new IOException(MessageFormat.format(bundle.getString("error.installedDbInit"), e.getMessage()), e);
+            throw new IOException(MessageFormat.format(
+                bundle.getString("error.installedDbInit"), e.getMessage()), e);
         }
     }
 
@@ -446,7 +459,8 @@ public class ModuleManager {
         return modules;
     }
 
-    public List<InstalledModule> listInstalledModules(String language, String moduleType, String nameFilter, String descFilter) throws IOException {
+    public List<InstalledModule> listInstalledModules(String language, String moduleType, 
+                                                        String nameFilter, String descFilter) throws IOException {
         List<InstalledModule> modules = new ArrayList<>();
         Path installedDbPath = modulePath.resolve("mybible_installed.db");
 
@@ -455,7 +469,8 @@ public class ModuleManager {
         }
 
         StringBuilder sql = new StringBuilder(
-            "SELECT name, language, description, update_date, install_date FROM installed_modules WHERE 1=1");
+            "SELECT name, language, description, type, updatedate, installdate " +
+            "FROM installed_modules WHERE 1=1");
 
         List<String> params = new ArrayList<>();
 
@@ -463,14 +478,22 @@ public class ModuleManager {
             sql.append(" AND LOWER(language) LIKE LOWER(?)");
             params.add("%" + language + "%");
         }
+
+        if (moduleType != null && !moduleType.isEmpty()) {
+            sql.append(" AND LOWER(type) LIKE LOWER(?)");
+            params.add("%" + moduleType + "%");
+        }
+
         if (nameFilter != null && !nameFilter.isEmpty()) {
             sql.append(" AND LOWER(name) LIKE LOWER(?)");
             params.add("%" + nameFilter + "%");
         }
+
         if (descFilter != null && !descFilter.isEmpty()) {
             sql.append(" AND LOWER(description) LIKE LOWER(?)");
             params.add("%" + descFilter + "%");
         }
+
         sql.append(" ORDER BY LOWER(name)");
 
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + installedDbPath);
@@ -482,40 +505,29 @@ public class ModuleManager {
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    String moduleName = rs.getString("name");
-
-                    // Get module type from cache
-                    String modType = "bible";
-                    try {
-                        CachedModule cached = getCachedModule(moduleName, null);
-                        if (cached != null) {
-                            modType = cached.moduleType;
-                        }
-                    } catch (IOException e) {
-                        // If cache doesn't exist or module not in cache, use default
-                    }
-
                     InstalledModule mod = new InstalledModule(
-                        moduleName,
+                        rs.getString("name"),
                         rs.getString("language"),
                         rs.getString("description"),
-                        rs.getString("update_date"),
-                        rs.getString("install_date")
+                        rs.getString("updatedate"),
+                        rs.getString("installdate")
                     );
-                    mod.moduleType = modType;
+
+                    // Read type directly from database
+                    mod.moduleType = rs.getString("type");
+                    if (mod.moduleType == null || mod.moduleType.isEmpty()) {
+                        mod.moduleType = "bible";  // Fallback for old records
+                    }
+
                     mod.files = getInstalledFiles(conn, mod.name);
                     modules.add(mod);
                 }
             }
         } catch (SQLException e) {
-            throw new IOException(MessageFormat.format(bundle.getString("error.listInstalled"), e.getMessage()), e);
+            throw new IOException(MessageFormat.format(
+                bundle.getString("error.listInstalled"), e.getMessage()), e);
         }
-        // Apply type filter if needed
-        if (moduleType != null && !moduleType.isEmpty()) {
-            modules = modules.stream().filter(mod -> 
-                mod.moduleType.toLowerCase().contains(moduleType.toLowerCase())
-            ).collect(Collectors.toList());
-        }
+
         return modules;
     }
 
@@ -642,12 +654,13 @@ public class ModuleManager {
 
     private InstalledModule getInstalledModule(String name) throws IOException {
         Path installedDbPath = modulePath.resolve("mybible_installed.db");
+
         if (!Files.exists(installedDbPath)) {
             return null;
         }
 
-        String sql = "SELECT name, language, description, update_date, install_date " +
-                    "FROM installed_modules WHERE LOWER(name) LIKE LOWER(?)";
+        String sql = "SELECT name, language, description, type, updatedate, installdate " +
+                     "FROM installed_modules WHERE LOWER(name) LIKE LOWER(?)";
 
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + installedDbPath);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -660,16 +673,24 @@ public class ModuleManager {
                         rs.getString("name"),
                         rs.getString("language"),
                         rs.getString("description"),
-                        rs.getString("update_date"),
-                        rs.getString("install_date")
+                        rs.getString("updatedate"),
+                        rs.getString("installdate")
                     );
+
+                    mod.moduleType = rs.getString("type");
+                    if (mod.moduleType == null || mod.moduleType.isEmpty()) {
+                        mod.moduleType = "bible";
+                    }
+
                     mod.files = getInstalledFiles(conn, mod.name);
                     return mod;
                 }
             }
         } catch (SQLException e) {
-            throw new IOException(MessageFormat.format(bundle.getString("error.getInstalled"), e.getMessage()), e);
+            throw new IOException(MessageFormat.format(
+                bundle.getString("error.getInstalled"), e.getMessage()), e);
         }
+
         return null;
     }
 
@@ -747,27 +768,34 @@ public class ModuleManager {
 
     private Map<String, Path> extractModule(Path zipPath, String moduleName, ProgressCallback progressCallback) throws IOException {
         Map<String, Path> extractedFiles = new LinkedHashMap<>();
-        String cleanModuleName = moduleName.endsWith(".zip") ? moduleName.substring(0, moduleName.length() - 4) : moduleName;
+        String cleanModuleName = moduleName.endsWith(".zip") 
+            ? moduleName.substring(0, moduleName.length() - 4) 
+            : moduleName;
 
-        try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipPath))) {
-            ZipEntry entry;
-
-            while ((entry = zis.getNextEntry()) != null) {
+        try (ZipFile zipFile = new ZipFile(zipPath.toFile())) {
+            Enumeration<ZipArchiveEntry> entries = zipFile.getEntries();
+            
+            while (entries.hasMoreElements()) {
+                ZipArchiveEntry entry = entries.nextElement();
+                
                 if (entry.isDirectory()) {
                     continue;
                 }
 
                 String originalFileName = entry.getName();
                 String targetName = reconstructSqliteName(originalFileName, cleanModuleName);
-
+                
                 if (targetName.equals(originalFileName) && originalFileName.startsWith(".")) {
                     targetName = cleanModuleName + originalFileName;
                 }
 
                 Path targetPath = modulePath.resolve(targetName);
-                Files.copy(zis, targetPath, StandardCopyOption.REPLACE_EXISTING);
+
+                try (InputStream is = zipFile.getInputStream(entry)) {
+                    Files.copy(is, targetPath, StandardCopyOption.REPLACE_EXISTING);
+                }
+                
                 extractedFiles.put(targetName, targetPath);
-                zis.closeEntry();
             }
         }
         return extractedFiles;
@@ -793,17 +821,22 @@ public class ModuleManager {
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + installedDbPath)) {
             conn.setAutoCommit(false);
 
-            String modSql = "INSERT INTO installed_modules (name, language, description, update_date, install_date) VALUES (?, ?, ?, ?, ?)";
+            String modSql = "INSERT INTO installed_modules " +
+                "(name, language, description, type, updatedate, installdate) VALUES (?, ?, ?, ?, ?, ?)";
+
             try (PreparedStatement pstmt = conn.prepareStatement(modSql)) {
                 pstmt.setString(1, mod.name);
                 pstmt.setString(2, mod.language);
                 pstmt.setString(3, mod.description);
-                pstmt.setString(4, mod.updateDate);
-                pstmt.setString(5, Instant.now().toString());
+                pstmt.setString(4, mod.moduleType);
+                pstmt.setString(5, mod.updateDate);
+                pstmt.setString(6, Instant.now().toString());
                 pstmt.executeUpdate();
             }
 
-            String fileSql = "INSERT INTO installed_files (module_name, file_name, file_path) VALUES (?, ?, ?)";
+            String fileSql = "INSERT INTO installed_files " +
+                "(module_name, file_name, file_path) VALUES (?, ?, ?)";
+
             try (PreparedStatement pstmt = conn.prepareStatement(fileSql)) {
                 for (Map.Entry<String, Path> entry : files.entrySet()) {
                     pstmt.setString(1, mod.name);
@@ -816,7 +849,8 @@ public class ModuleManager {
 
             conn.commit();
         } catch (SQLException e) {
-            throw new IOException(MessageFormat.format(bundle.getString("error.recordInstall"), e.getMessage()), e);
+            throw new IOException(MessageFormat.format(
+                bundle.getString("error.recordInstall"), e.getMessage()), e);
         }
     }
 
@@ -1035,13 +1069,7 @@ public class ModuleManager {
         }
     }
 
-    /**
-     * Install a module from a local SQL or ZIP file.
-     * 
-     * @param filePath Path to the local .sql, .sqlite3, or .zip file
-     * @return true if installation was successful
-     * @throws IOException if installation fails
-     */
+    //Install a module from a local SQL or ZIP file.
     public boolean installFromFile(String filePath) throws IOException {
         Path sourceFile = Paths.get(filePath);
 
@@ -1120,21 +1148,52 @@ public class ModuleManager {
         }
 
         // Determine module type from suffix
-        String moduleType = "bible";
+        String moduleType = null;  // Changed to null initially
         String moduleName = baseName;
 
-        for (String type : MODULE_TYPES) {
+        // List of valid module types in order of priority (longest first to avoid partial matches)
+        String[] moduleTypes = {
+            "commentaries", "crossreferences", "devotions", 
+            "dictionary", "subheadings", "plan"
+        };
+
+        // Check for type suffix in the basename
+        for (String type : moduleTypes) {
+            // Check if basename ends with .type (case-insensitive)
             if (baseName.toLowerCase().endsWith("." + type.toLowerCase())) {
                 moduleType = type;
+                // Remove the type suffix from module name
                 moduleName = baseName.substring(0, 
                     baseName.length() - type.length() - 1);
                 break;
             }
         }
 
-        // For ZIP files, module name is the zip file name (without .zip)
+        // For ZIP files, use the original ZIP name (without .zip) as module name
         if (extension.equals("zip")) {
             moduleName = fileName.substring(0, fileName.length() - 4);
+
+            // Check if the ZIP name itself contains a type suffix
+            if (moduleType == null) {
+                for (String type : moduleTypes) {
+                    if (moduleName.toLowerCase().endsWith("." + type.toLowerCase())) {
+                        moduleType = type;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // If no type suffix found and it's a SQLite file, try to detect from database structure
+        if (moduleType == null && !extension.equals("zip")) {
+            moduleType = detectModuleTypeFromStructure(sourceFile, fileName);
+        }
+
+        // If still no type detected, throw an error
+        if (moduleType == null) {
+            throw new IOException(MessageFormat.format(
+                bundle.getString("error.file.typeNotDetected"), 
+                fileName));
         }
 
         // Extract language and description from SQL info table if possible
@@ -1159,6 +1218,88 @@ public class ModuleManager {
         }
 
         return new ModuleFileInfo(moduleName, moduleType, language, description);
+    }
+
+    // Detect module type by examining the database structure.
+    // Bible modules have 'books' or 'books_all' table.
+    private String detectModuleTypeFromStructure(Path sqlFile, String fileName) throws IOException {
+        String dbUrl = "jdbc:sqlite:" + sqlFile.toAbsolutePath();
+
+        try (Connection conn = DriverManager.getConnection(dbUrl)) {
+            DatabaseMetaData metaData = conn.getMetaData();
+
+            // Check for Bible module indicators (books or books_all table)
+            if (hasTable(metaData, "books") || hasTable(metaData, "books_all")) {
+                if (verbosity > 1) {
+                    System.out.println(MessageFormat.format(
+                        bundle.getString("msg.file.detectedBibleFromStructure"), 
+                        fileName));
+                }
+                return "bible";
+            }
+
+            // Check for Commentary module (commentary table)
+            if (hasTable(metaData, "commentary")) {
+                if (verbosity > 1) {
+                    System.out.println(MessageFormat.format(
+                        bundle.getString("msg.file.detectedCommentaryFromStructure"), 
+                        fileName));
+                }
+                return "commentaries";
+            }
+
+            // Check for Dictionary module (dictionary table)
+            if (hasTable(metaData, "dictionary")) {
+                if (verbosity > 1) {
+                    System.out.println(MessageFormat.format(
+                        bundle.getString("msg.file.detectedDictionaryFromStructure"), 
+                        fileName));
+                }
+                return "dictionary";
+            }
+
+            // Could not determine type from structure
+            if (verbosity > 0) {
+                System.err.println(MessageFormat.format(
+                    bundle.getString("warning.file.typeNotDetectedFromStructure"), 
+                    fileName));
+            }
+            return null;
+
+        } catch (SQLException e) {
+            throw new IOException(MessageFormat.format(
+                bundle.getString("error.file.structureCheckFailed"), 
+                fileName, e.getMessage()), e);
+        }
+    }
+
+    // Check if a table exists in the database.
+    private boolean hasTable(DatabaseMetaData metaData, String tableName) throws SQLException {
+        // Check with exact name (case-sensitive)
+        try (ResultSet rs = metaData.getTables(null, null, tableName, 
+                new String[]{"TABLE"})) {
+            if (rs.next()) {
+                return true;
+            }
+        }
+
+        // Check with lowercase (SQLite is case-insensitive for table names)
+        try (ResultSet rs = metaData.getTables(null, null, tableName.toLowerCase(), 
+                new String[]{"TABLE"})) {
+            if (rs.next()) {
+                return true;
+            }
+        }
+
+        // Check with uppercase
+        try (ResultSet rs = metaData.getTables(null, null, tableName.toUpperCase(), 
+                new String[]{"TABLE"})) {
+            if (rs.next()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Extract language and description from SQL file's info table.
@@ -1346,7 +1487,7 @@ public class ModuleManager {
 
         Map<String, Path> installedFiles = new LinkedHashMap<>();
 
-        // Construct target file name
+        // Construct target file name based on detected type
         String targetFileName;
         if ("bible".equals(moduleInfo.moduleType)) {
             targetFileName = moduleInfo.moduleName + ".SQLite3";
@@ -1379,6 +1520,12 @@ public class ModuleManager {
         } else {
             // Copy file to module directory
             Files.copy(sourceFile, targetPath, StandardCopyOption.REPLACE_EXISTING);
+
+            if (verbosity > 0) {
+                System.out.println(MessageFormat.format(
+                    bundle.getString("msg.file.copied"), 
+                    sourceFile.getFileName(), targetFileName));
+            }
         }
 
         installedFiles.put(targetFileName, targetPath);
@@ -1592,44 +1739,49 @@ public class ModuleManager {
     }
 
     // Record installation of a module from file.
-    private void recordFileInstallation(ModuleFileInfo moduleInfo, 
-                                        Map<String, Path> files) throws IOException {
-        Path installedDbPath = modulePath.resolve("mybible_installed.db");
+/**
+ * Record installation of a module from file.
+ */
+private void recordFileInstallation(ModuleFileInfo moduleInfo, 
+                                    Map<String, Path> files) throws IOException {
+    Path installedDbPath = modulePath.resolve("mybible_installed.db");
 
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + installedDbPath)) {
-            conn.setAutoCommit(false);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + installedDbPath)) {
+        conn.setAutoCommit(false);
 
-            String modSql = "INSERT INTO installed_modules " +
-                "(name, language, description, update_date, install_date) VALUES (?, ?, ?, ?, ?)";
+        // Include type in the INSERT statement
+        String modSql = "INSERT INTO installed_modules " +
+            "(name, language, description, type, updatedate, installdate) VALUES (?, ?, ?, ?, ?, ?)";
 
-            try (PreparedStatement pstmt = conn.prepareStatement(modSql)) {
-                pstmt.setString(1, moduleInfo.moduleName);
-                pstmt.setString(2, moduleInfo.language);
-                pstmt.setString(3, moduleInfo.description);
-                pstmt.setString(4, "0.0.1");  // Version for file installations
-                pstmt.setString(5, Instant.now().toString());
-                pstmt.executeUpdate();
-            }
-
-            String fileSql = "INSERT INTO installed_files " +
-                "(module_name, file_name, file_path) VALUES (?, ?, ?)";
-
-            try (PreparedStatement pstmt = conn.prepareStatement(fileSql)) {
-                for (Map.Entry<String, Path> entry : files.entrySet()) {
-                    pstmt.setString(1, moduleInfo.moduleName);
-                    pstmt.setString(2, entry.getKey());
-                    pstmt.setString(3, entry.getValue().toString());
-                    pstmt.addBatch();
-                }
-                pstmt.executeBatch();
-            }
-
-            conn.commit();
-        } catch (SQLException e) {
-            throw new IOException(MessageFormat.format(
-                bundle.getString("error.recordInstall"), e.getMessage()), e);
+        try (PreparedStatement pstmt = conn.prepareStatement(modSql)) {
+            pstmt.setString(1, moduleInfo.moduleName);
+            pstmt.setString(2, moduleInfo.language);
+            pstmt.setString(3, moduleInfo.description);
+            pstmt.setString(4, moduleInfo.moduleType);  // ADD MODULE TYPE
+            pstmt.setString(5, "0.0.1");  // Version for file installations
+            pstmt.setString(6, Instant.now().toString());
+            pstmt.executeUpdate();
         }
+
+        String fileSql = "INSERT INTO installed_files " +
+            "(module_name, file_name, file_path) VALUES (?, ?, ?)";
+
+        try (PreparedStatement pstmt = conn.prepareStatement(fileSql)) {
+            for (Map.Entry<String, Path> entry : files.entrySet()) {
+                pstmt.setString(1, moduleInfo.moduleName);
+                pstmt.setString(2, entry.getKey());
+                pstmt.setString(3, entry.getValue().toString());
+                pstmt.addBatch();
+            }
+            pstmt.executeBatch();
+        }
+
+        conn.commit();
+    } catch (SQLException e) {
+        throw new IOException(MessageFormat.format(
+            bundle.getString("error.recordInstall"), e.getMessage()), e);
     }
+}
 
     // Get file extension from file name.
     private String getFileExtension(String fileName) {

@@ -87,22 +87,50 @@ public class ModuleScanner {
         return false;
     }
 
-    // Extracts metadata and formats the description.
+    // Extracts metadata and formats the description — only if the module has a books/books_all table
     private Optional<Module> getModuleInfo(Path modulePath) {
         String url = "jdbc:sqlite:" + modulePath.toAbsolutePath().toString();
         String defaultName = modulePath.getFileName().toString().replaceAll("(?i)\\.sqlite3$", "");
 
+        // Add table presence check — if neither table is found, skip this file
+        if (!hasBibleTable(url)) {
+            return Optional.empty();
+        }
+
         String language = getInfoField(url, "language").orElse("NA");
         String descriptionRaw = getInfoField(url, "description").orElse("NA");
-        String description = descriptionRaw.replace("\n", " | ").replace("\r", ""); // Also remove carriage returns
-
+        String description = descriptionRaw.replace("\n", " | ").replace("\r", "");
         String detailedInfoRaw = getInfoField(url, "detailed_info").orElse("NA");
-        // String detailedInfo = detailedInfoRaw.replace("\n", " | ").replace("\r", ""); // Also remove carriage returns
-        String detailedInfo = detailedInfoRaw.replace("\r", ""); // Also remove carriage returns
-
+        String detailedInfo = detailedInfoRaw.replace("\r", "");
         String name = getInfoField(url, "name").orElse(defaultName);
-
         return Optional.of(new Module(language, name, description, detailedInfo, modulePath));
+    }
+
+    // Checks if a "books" or "books_all" table exists (case-insensitive)
+    private boolean hasBibleTable(String url) {
+        try (Connection conn = DriverManager.getConnection(url)) {
+            if (hasTable(conn, "books") || hasTable(conn, "books_all")) {
+                return true;
+            }
+        } catch (SQLException e) {
+            // Unable to read tables — treat as not a bible module
+        }
+        return false;
+    }
+
+    // Helper that checks if a table exists (case-insensitive)
+    private boolean hasTable(Connection conn, String tableName) throws SQLException {
+        // SQLite treats table names as case-insensitive
+        try (ResultSet rs = conn.getMetaData().getTables(null, null, tableName, null)) {
+            if (rs.next()) return true;
+        }
+        try (ResultSet rs = conn.getMetaData().getTables(null, null, tableName.toLowerCase(), null)) {
+            if (rs.next()) return true;
+        }
+        try (ResultSet rs = conn.getMetaData().getTables(null, null, tableName.toUpperCase(), null)) {
+            if (rs.next()) return true;
+        }
+        return false;
     }
 
     // Helper method to get a single field from the module's info table.

@@ -43,8 +43,8 @@ public class ExtensionManager {
 
     private static final String MANIFEST_FILENAME = "manifest.json";
     private static final Set<String> PROTECTED_FILES = Set.of("default_mapping.json");
-    private static final String DEFAULT_REGISTRY_URL = "https://raw.githubusercontent.com/kosivantsov/mybible-cli-extensions/main/registry.json";
-    private static final String DEFAULT_REGISTRY_NAME = "kosivantsov.extregistry";
+    private static final String DEFAULT_REGISTRY_URL = "https://raw.githubusercontent.com/mybible-cli/mybible-cli-extensions/main/registry.json";
+    private static final String DEFAULT_REGISTRY_NAME = "mybible-cli.extregistry";
 
     private static final Map<String, Set<String>> ALLOWED_FILE_TYPES = Map.of(
         "theme", Set.of("themes"),
@@ -439,7 +439,7 @@ public class ExtensionManager {
         if (manifest.files != null) {
             if (manifest.files.mappings != null) {
                 for (String mappingFile : manifest.files.mappings) {
-                    Path mappingPath = configDir.resolve(mappingFile);
+                    Path mappingPath = configDir.resolve("mapping").resolve(mappingFile);
                     Files.deleteIfExists(mappingPath);
                     if (verbosity > 0) {
                         System.out.println(MessageFormat.format(
@@ -498,7 +498,7 @@ public class ExtensionManager {
                     continue;
                 }
 
-                Path targetPath = configDir.resolve(mappingFile);
+                Path targetPath = configDir.resolve("mapping").resolve(mappingFile);
                 if (Files.exists(targetPath)) {
                     String owner = findFileOwner(mappingFile, FileType.MAPPING);
                     if (owner != null && !owner.equals(manifest.name)) {
@@ -760,7 +760,7 @@ public class ExtensionManager {
 
         if (manifest.files.mappings != null) {
             for (String mappingFile : manifest.files.mappings) {
-                Path targetPath = configDir.resolve(mappingFile);
+                Path targetPath = configDir.resolve("mapping").resolve(mappingFile);
                 Files.write(targetPath, fileContents.get(mappingFile));
                 if (verbosity > 0) {
                     System.out.println(MessageFormat.format(

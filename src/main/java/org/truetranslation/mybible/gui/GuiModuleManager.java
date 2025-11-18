@@ -750,60 +750,137 @@ public class GuiModuleManager extends JDialog {
         progressDialog.setVisible(true);
     }
 
-    private void showModuleInfo() {
-        int selectedRow = moduleTable.getSelectedRow();
-        if (selectedRow < 0) {
-            JOptionPane.showMessageDialog(this,
-                bundle.getString("moduleMgr.error.noSelection"),
-                bundle.getString("moduleMgr.info.noSelectionTitle"),
-                JOptionPane.INFORMATION_MESSAGE);
-            return;
-        }
-
-        int modelRow = moduleTable.convertRowIndexToModel(selectedRow);
-        String moduleName = (String) tableModel.getValueAt(modelRow, 1);
-
-        try {
-            ModuleManager.ModuleInfo info = moduleManager.getModuleInfo(moduleName);
-
-            StringBuilder infoText = new StringBuilder();
-            infoText.append(bundle.getString("moduleMgr.info.name")).append(" ").append(info.cached.name).append("\n");
-            infoText.append(bundle.getString("moduleMgr.info.language")).append(" ")
-                .append(info.cached.language != null ? info.cached.language : "N/A").append("\n");
-            infoText.append(bundle.getString("moduleMgr.info.type")).append(" ").append(info.cached.moduleType).append("\n");
-            infoText.append(bundle.getString("moduleMgr.info.latestVersion")).append(" ").append(info.cached.updateDate).append("\n");
-            infoText.append(bundle.getString("moduleMgr.info.description")).append(" ").append(info.cached.description).append("\n\n");
-
-            if (info.isInstalled) {
-                infoText.append(bundle.getString("moduleMgr.info.installed")).append(" ").append(info.installed.updateDate).append("\n");
-                if (info.hasUpdate) {
-                    infoText.append(bundle.getString("moduleMgr.info.upgradeAvailable")).append(" ")
-                        .append(info.cached.updateDate).append("\n");
-                } else {
-                    infoText.append(bundle.getString("moduleMgr.info.status")).append(" ")
-                        .append(bundle.getString("moduleMgr.info.upToDate")).append("\n");
-                }
-            } else {
-                infoText.append(bundle.getString("moduleMgr.info.status")).append(" ")
-                    .append(bundle.getString("moduleMgr.info.notInstalled")).append("\n");
-            }
-
-            JTextArea textArea = new JTextArea(infoText.toString());
-            textArea.setEditable(false);
-            textArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-
-            JOptionPane.showMessageDialog(this,
-                new JScrollPane(textArea),
-                MessageFormat.format(bundle.getString("moduleMgr.info.title"), moduleName),
-                JOptionPane.INFORMATION_MESSAGE);
-
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(this,
-                MessageFormat.format(bundle.getString("moduleMgr.error.infoFailed"), e.getMessage()),
-                bundle.getString("error.title"),
-                JOptionPane.ERROR_MESSAGE);
-        }
+private void showModuleInfo() {
+    int selectedRow = moduleTable.getSelectedRow();
+    if (selectedRow < 0) {
+        JOptionPane.showMessageDialog(this,
+            bundle.getString("moduleMgr.error.noSelection"),
+            bundle.getString("moduleMgr.info.noSelectionTitle"),
+            JOptionPane.INFORMATION_MESSAGE);
+        return;
     }
+
+    int modelRow = moduleTable.convertRowIndexToModel(selectedRow);
+    String moduleName = (String) tableModel.getValueAt(modelRow, 1);
+
+    try {
+        ModuleManager.ModuleInfo info = moduleManager.getModuleInfo(moduleName);
+
+        StringBuilder infoText = new StringBuilder();
+        infoText.append("<html><body style='width: 400px;'>");
+        
+        // Module name as heading
+        infoText.append("<h3>").append(info.cached.name).append("</h3>");
+        
+        // Language
+        infoText.append("<p><b>").append(bundle.getString("moduleMgr.info.language")).append("</b> ")
+            .append(info.cached.language != null ? info.cached.language : "N/A").append("</p>");
+        
+        // Type
+        infoText.append("<p><b>").append(bundle.getString("moduleMgr.info.type")).append("</b> ")
+            .append(info.cached.moduleType).append("</p>");
+        
+        // Latest version
+        infoText.append("<p><b>").append(bundle.getString("moduleMgr.info.latestVersion")).append("</b> ")
+            .append(info.cached.updateDate).append("</p>");
+        
+        // Description
+        if (info.cached.description != null && !info.cached.description.isEmpty()) {
+            infoText.append("<p><b>").append(bundle.getString("moduleMgr.info.description")).append("</b><br>")
+                .append(info.cached.description).append("</p>");
+        }
+        
+        // Installation status
+        if (info.isInstalled) {
+            infoText.append("<p><b>").append(bundle.getString("moduleMgr.info.status")).append("</b> ")
+                .append(bundle.getString("moduleMgr.info.installed")).append("</p>");
+            
+            infoText.append("<p><b>").append(bundle.getString("moduleMgr.info.installed")).append("</b> ")
+                .append(info.installed.updateDate).append("</p>");
+            
+            if (info.hasUpdate) {
+                infoText.append("<p><b style='color: #0066cc;'>")
+                    .append(bundle.getString("moduleMgr.info.upgradeAvailable"))
+                    .append("</b> v").append(info.cached.updateDate).append("</p>");
+            } else {
+                infoText.append("<p><b>").append(bundle.getString("moduleMgr.info.status")).append("</b> ")
+                    .append(bundle.getString("moduleMgr.info.upToDate")).append("</p>");
+            }
+        } else {
+            infoText.append("<p><b>").append(bundle.getString("moduleMgr.info.status")).append("</b> ")
+                .append(bundle.getString("moduleMgr.info.notInstalled")).append("</p>");
+        }
+
+        infoText.append("</body></html>");
+
+        JOptionPane.showMessageDialog(this,
+            infoText.toString(),
+            MessageFormat.format(bundle.getString("moduleMgr.info.title"), moduleName),
+            JOptionPane.INFORMATION_MESSAGE);
+
+    } catch (IOException e) {
+        JOptionPane.showMessageDialog(this,
+            MessageFormat.format(bundle.getString("moduleMgr.error.infoFailed"), e.getMessage()),
+            bundle.getString("error.title"),
+            JOptionPane.ERROR_MESSAGE);
+    }
+}
+
+
+    // private void showModuleInfo() {
+    //     int selectedRow = moduleTable.getSelectedRow();
+    //     if (selectedRow < 0) {
+    //         JOptionPane.showMessageDialog(this,
+    //             bundle.getString("moduleMgr.error.noSelection"),
+    //             bundle.getString("moduleMgr.info.noSelectionTitle"),
+    //             JOptionPane.INFORMATION_MESSAGE);
+    //         return;
+    //     }
+// 
+    //     int modelRow = moduleTable.convertRowIndexToModel(selectedRow);
+    //     String moduleName = (String) tableModel.getValueAt(modelRow, 1);
+// 
+    //     try {
+    //         ModuleManager.ModuleInfo info = moduleManager.getModuleInfo(moduleName);
+// 
+    //         StringBuilder infoText = new StringBuilder();
+    //         infoText.append(bundle.getString("moduleMgr.info.name")).append(" ").append(info.cached.name).append("\n");
+    //         infoText.append(bundle.getString("moduleMgr.info.language")).append(" ")
+    //             .append(info.cached.language != null ? info.cached.language : "N/A").append("\n");
+    //         infoText.append(bundle.getString("moduleMgr.info.type")).append(" ").append(info.cached.moduleType).append("\n");
+    //         infoText.append(bundle.getString("moduleMgr.info.latestVersion")).append(" ").append(info.cached.updateDate).append("\n");
+    //         infoText.append(bundle.getString("moduleMgr.info.description")).append(" ").append(info.cached.description).append("\n\n");
+// 
+    //         if (info.isInstalled) {
+    //             infoText.append(bundle.getString("moduleMgr.info.installed")).append(" ").append(info.installed.updateDate).append("\n");
+    //             if (info.hasUpdate) {
+    //                 infoText.append(bundle.getString("moduleMgr.info.upgradeAvailable")).append(" ")
+    //                     .append(info.cached.updateDate).append("\n");
+    //             } else {
+    //                 infoText.append(bundle.getString("moduleMgr.info.status")).append(" ")
+    //                     .append(bundle.getString("moduleMgr.info.upToDate")).append("\n");
+    //             }
+    //         } else {
+    //             infoText.append(bundle.getString("moduleMgr.info.status")).append(" ")
+    //                 .append(bundle.getString("moduleMgr.info.notInstalled")).append("\n");
+    //         }
+// 
+    //         JTextArea textArea = new JTextArea(infoText.toString());
+    //         textArea.setEditable(false);
+    //         textArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+// 
+    //         JOptionPane.showMessageDialog(this,
+    //             new JScrollPane(textArea),
+    //             MessageFormat.format(bundle.getString("moduleMgr.info.title"), moduleName),
+    //             JOptionPane.INFORMATION_MESSAGE);
+// 
+    //     } catch (IOException e) {
+    //         JOptionPane.showMessageDialog(this,
+    //             MessageFormat.format(bundle.getString("moduleMgr.error.infoFailed"), e.getMessage()),
+    //             bundle.getString("error.title"),
+    //             JOptionPane.ERROR_MESSAGE);
+    //     }
+    // }
 
     private void installFromFile() {
         JFileChooser fileChooser = new JFileChooser();
@@ -920,8 +997,8 @@ public class GuiModuleManager extends JDialog {
             if (full) {
                 // Remove cache db, downloads, registries and sources
                 Path configDir = configManager.getDefaultConfigDir();
-                Path cacheDb = configDir.resolve("cache.db");
                 Path cacheDir = configDir.resolve(".cache");
+                Path cacheDb = cacheDir.resolve("cache.db");
                 Path sourcesDir = configDir.resolve("sources");
 
                 Files.deleteIfExists(cacheDb);
