@@ -409,6 +409,7 @@ public class ExtensionManager {
         Files.createDirectories(extensionsDir);
         Files.createDirectories(i18nDir);
         Files.createDirectories(guiThemesDir);
+        Files.createDirectories(configManager.getDefaultConfigDir().resolve("mapping"));
 
         installFiles(manifest, fileContents);
         saveManifest(manifest);

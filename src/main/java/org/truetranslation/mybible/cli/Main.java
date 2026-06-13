@@ -137,7 +137,7 @@ public class Main implements Callable<Integer> {
                 System.err.println(bundle.getString("error.module.notConfigured"));
                 return 1;
             }
-            Path modulePath = Paths.get(modulesPathStr, moduleName + ".sqlite3");
+            Path modulePath = resolveModulePath(configManager.getModulesPath(), moduleName);
             if (!Files.exists(modulePath)) {
                 System.err.println(MessageFormat.format(bundle.getString("error.module.notFound"), modulePath));
                 return 1;
@@ -1320,7 +1320,7 @@ public class Main implements Callable<Integer> {
                 }
                 if (verbosity > 0) System.out.println(MessageFormat.format(bundle.getString("msg.usingLastModule"), moduleName));
             }
-            Path modulePath = Paths.get(configManager.getModulesPath(), moduleName + ".sqlite3");
+            Path modulePath = resolveModulePath(configManager.getModulesPath(), moduleName);
             if (!Files.exists(modulePath)) {
                 System.err.println(MessageFormat.format(bundle.getString("error.module.notFound"), modulePath));
                 return 1;
@@ -1467,6 +1467,23 @@ public class Main implements Callable<Integer> {
             return new String[] { bundle.getString("app.version") };
         }
     }
+
+    private static Path resolveModulePath(String modulesDir, String moduleName) {
+        // Try exact lowercase first (fast path)
+        Path candidate = Paths.get(modulesDir, moduleName + ".sqlite3");
+        if (Files.exists(candidate)) return candidate;
+    
+        // Fall back to case-insensitive scan (needed on Linux with .SQLite3 files)
+        try (var stream = Files.list(Paths.get(modulesDir))) {
+            return stream
+                .filter(p -> p.getFileName().toString()
+                    .equalsIgnoreCase(moduleName + ".sqlite3"))
+                .findFirst()
+                .orElse(candidate); // return non-existent path so caller gets the right error
+        } catch (IOException e) {
+            return candidate;
+        }
+}
 
     public static void main(String[] args) {
         boolean launchGuiDefault = (args.length == 0);

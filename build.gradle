@@ -20,6 +20,7 @@ dependencies {
     implementation 'org.slf4j:slf4j-nop:1.7.32'
     implementation 'com.formdev:flatlaf:3.2.5'
     implementation 'com.formdev:flatlaf-intellij-themes:3.2.5'
+    implementation 'org.apache.commons:commons-compress:1.27.1'
 }
 
 java {
@@ -29,7 +30,7 @@ java {
 
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
-    
+
     options.compilerArgs += [
         "-Aproject=${project.group}/${project.name}",
     ]

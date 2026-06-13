@@ -1014,6 +1014,7 @@ private void showModuleInfo() {
                     JOptionPane.INFORMATION_MESSAGE);
             } else {
                 moduleManager.purgeCache(false);
+                moduleManager = new ModuleManager(configManager, 0);
                 JOptionPane.showMessageDialog(this,
                     bundle.getString("moduleMgr.success.purged"),
                     bundle.getString("success.title"),

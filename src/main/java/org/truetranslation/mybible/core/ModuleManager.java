@@ -468,6 +468,8 @@ public class ModuleManager {
             return modules;
         }
 
+        initializeInstalledDatabase();
+
         StringBuilder sql = new StringBuilder(
             "SELECT name, language, description, type, updatedate, installdate " +
             "FROM installed_modules WHERE 1=1");
@@ -658,6 +660,8 @@ public class ModuleManager {
         if (!Files.exists(installedDbPath)) {
             return null;
         }
+
+        initializeInstalledDatabase();
 
         String sql = "SELECT name, language, description, type, updatedate, installdate " +
                      "FROM installed_modules WHERE LOWER(name) LIKE LOWER(?)";
