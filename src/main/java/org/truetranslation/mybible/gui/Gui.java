@@ -37,6 +37,7 @@ import java.util.Vector;
 import javax.swing.*;
 import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.plaf.basic.BasicComboBoxEditor;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.MutableAttributeSet;
 import javax.swing.text.SimpleAttributeSet;
@@ -83,8 +84,8 @@ public class Gui extends JFrame {
     };
 
     private JTextPane textDisplayPane;
-    private JComboBox<String> referenceInputField;
-    private final LinkedList<String> referenceHistory = new LinkedList<>();
+    private JComboBox<HistoryEntry> referenceInputField;
+    private final LinkedList<HistoryEntry> referenceHistory = new LinkedList<>();
     private int historyIndex = -1;
     private JButton historyBackButton;
     private JButton historyFwdButton;
@@ -190,7 +191,18 @@ public class Gui extends JFrame {
         gbc.gridx = 1; gbc.weightx = 1.0;
         referenceInputField = new JComboBox<>();
         referenceInputField.setEditable(true);
-        referenceInputField.setPrototypeDisplayValue("Genesis 1:1-10");
+        referenceInputField.setPrototypeDisplayValue(new HistoryEntry("Genesis 1:1-10", ""));
+        // Editor shows only the reference string, not the full HistoryEntry.toString()
+        referenceInputField.setEditor(new BasicComboBoxEditor() {
+            @Override
+            public void setItem(Object item) {
+                if (item instanceof HistoryEntry) {
+                    super.setItem(((HistoryEntry) item).reference);
+                } else {
+                    super.setItem(item);
+                }
+            }
+        });
         inputPanel.add(referenceInputField, gbc);
         gbc.gridx = 2; gbc.weightx = 0;
         JButton showButton = new JButton(bundle.getString("button.show"));
@@ -311,10 +323,9 @@ public class Gui extends JFrame {
     private void navigateBack() {
         if (referenceHistory.isEmpty()) return;
         historyIndex = Math.min(historyIndex + 1, referenceHistory.size() - 1);
-        referenceInputField.getEditor().setItem(referenceHistory.get(historyIndex));
+        applyHistoryEntry(referenceHistory.get(historyIndex));
         updateNavigationButtonStates();
         displayVerseDataForCurrentHistoryEntry();
-        // At the oldest end — hand focus to the forward button
         if (historyIndex >= referenceHistory.size() - 1) {
             historyFwdButton.requestFocusInWindow();
         }
@@ -324,15 +335,13 @@ public class Gui extends JFrame {
         if (historyIndex <= 0) {
             historyIndex = -1;
             updateNavigationButtonStates();
-            // At the newest end — hand focus to the back button
             historyBackButton.requestFocusInWindow();
             return;
         }
         historyIndex--;
-        referenceInputField.getEditor().setItem(referenceHistory.get(historyIndex));
+        applyHistoryEntry(referenceHistory.get(historyIndex));
         updateNavigationButtonStates();
         displayVerseDataForCurrentHistoryEntry();
-        // At the newest end — hand focus to the back button
         if (historyIndex <= 0) {
             historyBackButton.requestFocusInWindow();
         }
@@ -344,10 +353,15 @@ public class Gui extends JFrame {
         historyFwdButton.setEnabled(multipleEntries && historyIndex > 0);
     }
 
+    /** Restores both the reference field and the module selector from a history entry. */
+    private void applyHistoryEntry(HistoryEntry entry) {
+        referenceInputField.getEditor().setItem(entry.reference);
+        setSelectedModule(entry.moduleName);
+    }
+
     /**
      * Renders verses for the reference currently shown in the editor WITHOUT
-     * modifying the history list or historyIndex. Used exclusively by the
-     * navigation buttons so that navigating never creates duplicates.
+     * modifying the history list or historyIndex.
      */
     private void displayVerseDataForCurrentHistoryEntry() {
         textDisplayPane.setBackground(guiConfig.textAreaBackground != null
@@ -523,7 +537,6 @@ public class Gui extends JFrame {
             public void actionPerformed(ActionEvent e) { openConfigurationDialog(); }
         });
 
-        // Alt+B — previous reference; Alt+F — next reference.
         Action historyBackAction = new AbstractAction() {
             public void actionPerformed(ActionEvent e) { historyBackButton.doClick(); }
         };
@@ -531,16 +544,14 @@ public class Gui extends JFrame {
             public void actionPerformed(ActionEvent e) { historyFwdButton.doClick(); }
         };
 
-        // Root-pane binding (fires when focus is outside the combo editor)
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_B, KeyEvent.ALT_DOWN_MASK), "historyBackAction");
         actionMap.put("historyBackAction", historyBackAction);
         inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F, KeyEvent.ALT_DOWN_MASK), "historyFwdAction");
         actionMap.put("historyFwdAction", historyFwdAction);
 
-        // Editor-level binding — overrides FlatLaf's built-in Emacs actions
         JTextField editor = (JTextField) referenceInputField.getEditor().getEditorComponent();
-        editor.getActionMap().put("previous-word", null);   // disable Emacs Alt+B
-        editor.getActionMap().put("next-word",     null);   // disable Emacs Alt+F
+        editor.getActionMap().put("previous-word", null);
+        editor.getActionMap().put("next-word",     null);
         InputMap editorMap = editor.getInputMap(JComponent.WHEN_FOCUSED);
         editorMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_B, KeyEvent.ALT_DOWN_MASK), "historyBackAction");
         editorMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F, KeyEvent.ALT_DOWN_MASK), "historyFwdAction");
@@ -664,41 +675,41 @@ public class Gui extends JFrame {
     private void showModuleInfo() {
         ModuleScanner.Module selectedModule = (ModuleScanner.Module) moduleComboBox.getSelectedItem();
         if (selectedModule == null) return;
-    
+
         StringBuilder html = new StringBuilder();
         html.append("<html><body style='font-family: sans-serif; padding: 4px;'>");
         html.append("<h3>").append(escapeHtml(selectedModule.getName())).append("</h3>");
-    
+
         String lang = selectedModule.getLanguage();
         if (lang != null && !lang.isEmpty()) {
             html.append("<p><b>").append(bundle.getString("moduleMgr.info.language"))
                 .append("</b> ").append(escapeHtml(lang)).append("</p>");
         }
-    
+
         String desc = selectedModule.getDescription();
         if (desc != null && !desc.isEmpty()) {
             html.append("<p><b>").append(bundle.getString("moduleMgr.info.description"))
                 .append("</b><br>").append(escapeHtml(desc)).append("</p>");
         }
-    
+
         String detail = selectedModule.getDetailedInfo();
         if (detail != null && !detail.isEmpty()) {
             html.append("<p>").append(sanitizeDetailedInfo(detail)).append("</p>");
         }
-    
+
         html.append("</body></html>");
-    
+
         JTextPane textPane = new JTextPane();
         textPane.setContentType("text/html");
         textPane.setText(html.toString());
         textPane.setEditable(false);
         textPane.setBackground(UIManager.getColor("Panel.background"));
         textPane.setCaretPosition(0);
-    
+
         JScrollPane scroll = new JScrollPane(textPane);
         scroll.setPreferredSize(new Dimension(460, 300));
         scroll.setBorder(BorderFactory.createEmptyBorder());
-    
+
         JOptionPane.showMessageDialog(
             this, scroll,
             MessageFormat.format(bundle.getString("moduleMgr.info.title"), selectedModule.getName()),
@@ -846,13 +857,14 @@ public class Gui extends JFrame {
                 new GuiTextFormatter(guiConfig).format(guiVerses, doc);
             }
 
-            // ---- Maintain unique history, most-recently-used first ----
+            // ---- Maintain unique history (reference + module), most-recently-used first ----
             String trimmed = reference.trim();
-            int existingIdx = referenceHistory.indexOf(trimmed);
+            HistoryEntry newEntry = new HistoryEntry(trimmed, selectedModule.getName());
+            int existingIdx = referenceHistory.indexOf(newEntry);
             if (existingIdx >= 0) referenceHistory.remove(existingIdx);
-            referenceHistory.addFirst(trimmed);
+            referenceHistory.addFirst(newEntry);
             referenceInputField.setModel(new DefaultComboBoxModel<>(
-                referenceHistory.toArray(new String[0])));
+                referenceHistory.toArray(new HistoryEntry[0])));
             referenceInputField.getEditor().setItem(trimmed);
             historyIndex = -1;
             updateNavigationButtonStates();
@@ -902,6 +914,39 @@ public class Gui extends JFrame {
             }
         }
         return null;
+    }
+
+    // -----------------------------------------------------------------------
+    // Inner classes
+    // -----------------------------------------------------------------------
+
+    /** Pairs a reference string with the module name it was looked up in. */
+    private static class HistoryEntry {
+        final String reference;
+        final String moduleName;
+
+        HistoryEntry(String reference, String moduleName) {
+            this.reference  = reference;
+            this.moduleName = moduleName;
+        }
+
+        /** Shown in the drop-down list */
+        @Override
+        public String toString() {
+            return reference + "  [" + moduleName + "]";
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof HistoryEntry)) return false;
+            HistoryEntry other = (HistoryEntry) o;
+            return reference.equals(other.reference) && moduleName.equals(other.moduleName);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * reference.hashCode() + moduleName.hashCode();
+        }
     }
 
     private static class ModuleRenderer extends DefaultListCellRenderer {
