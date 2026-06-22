@@ -28,6 +28,7 @@ import java.text.MessageFormat;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,7 +53,7 @@ import org.truetranslation.mybible.core.model.Verse;
 public class Gui extends JFrame {
 
     private static final String[] LANGUAGE_CODES = {
-        "", // Empty default
+        "",
         "aa", "ab", "ae", "af", "ak", "am", "an", "ar", "as", "av", "ay", "az",
         "ba", "be", "bg", "bh", "bi", "bm", "bn", "bo", "br", "bs",
         "ca", "ce", "ch", "co", "cr", "cs", "cu", "cv", "cy",
@@ -82,7 +83,11 @@ public class Gui extends JFrame {
     };
 
     private JTextPane textDisplayPane;
-    private JTextField referenceInputField;
+    private JComboBox<String> referenceInputField;
+    private final LinkedList<String> referenceHistory = new LinkedList<>();
+    private int historyIndex = -1;
+    private JButton historyBackButton;
+    private JButton historyFwdButton;
     private JComboBox<ModuleScanner.Module> moduleComboBox;
     private JTextField modulePathField;
     private JCheckBox rawJsonCheckbox;
@@ -110,9 +115,7 @@ public class Gui extends JFrame {
         this.guiConfig = guiConfigManager.getConfig();
 
         setTitle(bundle.getString("window.title"));
-
         loadAppIcon();
-
         initUI();
         initKeyboardShortcuts();
         loadModules();
@@ -123,9 +126,8 @@ public class Gui extends JFrame {
             loadLastUsedModule();
         }
         if (initialReference != null) {
-            referenceInputField.setText(initialReference);
+            referenceInputField.getEditor().setItem(initialReference);
         }
-
         if (initialModule != null || initialReference != null) {
             SwingUtilities.invokeLater(this::updateAndDisplayVerseData);
         }
@@ -182,43 +184,66 @@ public class Gui extends JFrame {
         gbc.insets = new Insets(2, 5, 2, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
+        // Row 0 — reference input
         gbc.gridy = 0; gbc.gridx = 0; gbc.weightx = 0;
         inputPanel.add(new JLabel(bundle.getString("label.bibleReference")), gbc);
         gbc.gridx = 1; gbc.weightx = 1.0;
-        referenceInputField = new JTextField(30);
+        referenceInputField = new JComboBox<>();
+        referenceInputField.setEditable(true);
+        referenceInputField.setPrototypeDisplayValue("Genesis 1:1-10");
         inputPanel.add(referenceInputField, gbc);
         gbc.gridx = 2; gbc.weightx = 0;
         JButton showButton = new JButton(bundle.getString("button.show"));
         inputPanel.add(showButton, gbc);
 
-        gbc.gridy = 1; gbc.gridx = 0;
+        // Row 1 — history navigation buttons, aligned under the reference combo
+        gbc.gridy = 1; gbc.gridx = 1; gbc.weightx = 1.0; gbc.gridwidth = 1;
+        gbc.insets = new Insets(0, 5, 2, 5);
+        historyBackButton = new JButton("◀");
+        historyFwdButton  = new JButton("▶");
+        historyBackButton.setToolTipText("Previous reference (Alt+B)");
+        historyFwdButton.setToolTipText("Next reference (Alt+F)");
+        historyBackButton.setEnabled(false);
+        historyFwdButton.setEnabled(false);
+        historyBackButton.setFocusable(false);
+        historyFwdButton.setFocusable(false);
+        JPanel navPanel = new JPanel(new GridLayout(1, 2, 4, 0));
+        navPanel.add(historyBackButton);
+        navPanel.add(historyFwdButton);
+        inputPanel.add(navPanel, gbc);
+        gbc.insets = new Insets(2, 5, 2, 5);
+        gbc.gridwidth = 1;
+
+        // Row 2 — module selector
+        gbc.gridy = 2; gbc.gridx = 0; gbc.weightx = 0;
         inputPanel.add(new JLabel(bundle.getString("label.module")), gbc);
-        gbc.gridx = 1;
+        gbc.gridx = 1; gbc.weightx = 1.0;
         moduleComboBox = new JComboBox<>();
         moduleComboBox.setRenderer(new ModuleRenderer());
         inputPanel.add(moduleComboBox, gbc);
-        gbc.gridx = 2;
+        gbc.gridx = 2; gbc.weightx = 0;
         JButton infoButton = new JButton(bundle.getString("button.info"));
         inputPanel.add(infoButton, gbc);
 
-        gbc.gridy = 2; gbc.gridx = 0;
+        // Row 3 — module path
+        gbc.gridy = 3; gbc.gridx = 0;
         inputPanel.add(new JLabel(bundle.getString("label.modulePath")), gbc);
-
         gbc.gridx = 1;
         modulePathField = new JTextField(configManager.getModulesPath());
         modulePathField.setEditable(false);
         inputPanel.add(modulePathField, gbc);
-
         gbc.gridx = 2;
         JButton setModulePathButton = new JButton(bundle.getString("button.modulePathSet"));
         inputPanel.add(setModulePathButton, gbc);
 
-        gbc.gridy = 3; gbc.gridx = 1; gbc.gridwidth = 2;
+        // Row 4 — raw JSON checkbox
+        gbc.gridy = 4; gbc.gridx = 1; gbc.gridwidth = 2;
         rawJsonCheckbox = new JCheckBox(bundle.getString("checkbox.rawJson"));
         rawJsonCheckbox.setSelected(guiConfig.showRawJson);
         inputPanel.add(rawJsonCheckbox, gbc);
 
-        gbc.gridy = 4; gbc.gridx = 0; gbc.gridwidth = 1; gbc.weightx = 0;
+        // Row 5 — mapping file
+        gbc.gridy = 5; gbc.gridx = 0; gbc.gridwidth = 1; gbc.weightx = 0;
         inputPanel.add(new JLabel(bundle.getString("label.mappingFile")), gbc);
         gbc.gridx = 1; gbc.weightx = 1.0;
         mappingFileField = new JTextField("default_mapping.json");
@@ -228,7 +253,8 @@ public class Gui extends JFrame {
         JButton mapBrowseButton = new JButton(bundle.getString("button.browse"));
         inputPanel.add(mapBrowseButton, gbc);
 
-        gbc.gridy = 5; gbc.gridx = 0; gbc.gridwidth = 1; gbc.weightx = 0;
+        // Row 6 — abbreviation language
+        gbc.gridy = 6; gbc.gridx = 0; gbc.gridwidth = 1; gbc.weightx = 0;
         inputPanel.add(new JLabel(bundle.getString("label.abbrLanguage")), gbc);
         gbc.gridx = 1; gbc.weightx = 1.0; gbc.gridwidth = 1;
         languageComboBox = new JComboBox<>(LANGUAGE_CODES);
@@ -237,7 +263,8 @@ public class Gui extends JFrame {
         languageComboBox.setToolTipText(bundle.getString("dialog.tooltip.abbrLanguage"));
         inputPanel.add(languageComboBox, gbc);
 
-        gbc.gridy = 6; gbc.gridx = 1; gbc.gridwidth = 2;
+        // Row 7 — use module abbreviations checkbox
+        gbc.gridy = 7; gbc.gridx = 1; gbc.gridwidth = 2;
         useModuleAbbrsCheckbox = new JCheckBox(bundle.getString("label.useModuleAbbrs"));
         useModuleAbbrsCheckbox.setSelected(guiConfig.useModuleAbbreviations);
         inputPanel.add(useModuleAbbrsCheckbox, gbc);
@@ -246,21 +273,19 @@ public class Gui extends JFrame {
 
         JPanel actionButtonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
         JButton configureButton = new JButton(bundle.getString("button.configure"));
-        JButton copyButton = new JButton(bundle.getString("button.copyDisplayedText"));
-        JButton quitButton = new JButton(bundle.getString("button.quit"));
+        JButton copyButton      = new JButton(bundle.getString("button.copyDisplayedText"));
+        JButton quitButton      = new JButton(bundle.getString("button.quit"));
         actionButtonPanel.add(configureButton);
         actionButtonPanel.add(copyButton);
         actionButtonPanel.add(quitButton);
-
         bottomContainer.add(actionButtonPanel, BorderLayout.SOUTH);
         add(bottomContainer, BorderLayout.SOUTH);
 
+        // ---- Action listeners ----
         showButton.addActionListener(e -> updateAndDisplayVerseData());
         referenceInputField.addActionListener(e -> updateAndDisplayVerseData());
         moduleComboBox.addActionListener(e -> updateAndDisplayVerseData());
-        languageComboBox.addActionListener(e -> {
-            updateAndDisplayVerseData();
-        });
+        languageComboBox.addActionListener(e -> updateAndDisplayVerseData());
         useModuleAbbrsCheckbox.addActionListener(e -> {
             guiConfig.useModuleAbbreviations = useModuleAbbrsCheckbox.isSelected();
             guiConfigManager.setConfig(guiConfig);
@@ -278,15 +303,134 @@ public class Gui extends JFrame {
         copyButton.addActionListener(e -> copyRichTextToClipboard());
         quitButton.addActionListener(e -> quitApplication());
         mapBrowseButton.addActionListener(e -> openMapBrowser());
+        historyBackButton.addActionListener(e -> navigateBack());
+        historyFwdButton.addActionListener(e -> navigateForward());
+    }
+
+    // History navigation
+    private void navigateBack() {
+        if (referenceHistory.isEmpty()) return;
+        historyIndex = Math.min(historyIndex + 1, referenceHistory.size() - 1);
+        referenceInputField.getEditor().setItem(referenceHistory.get(historyIndex));
+        updateNavigationButtonStates();
+        displayVerseDataForCurrentHistoryEntry();
+        // At the oldest end — hand focus to the forward button
+        if (historyIndex >= referenceHistory.size() - 1) {
+            historyFwdButton.requestFocusInWindow();
+        }
+    }
+
+    private void navigateForward() {
+        if (historyIndex <= 0) {
+            historyIndex = -1;
+            updateNavigationButtonStates();
+            // At the newest end — hand focus to the back button
+            historyBackButton.requestFocusInWindow();
+            return;
+        }
+        historyIndex--;
+        referenceInputField.getEditor().setItem(referenceHistory.get(historyIndex));
+        updateNavigationButtonStates();
+        displayVerseDataForCurrentHistoryEntry();
+        // At the newest end — hand focus to the back button
+        if (historyIndex <= 0) {
+            historyBackButton.requestFocusInWindow();
+        }
+    }
+
+    private void updateNavigationButtonStates() {
+        boolean multipleEntries = referenceHistory.size() > 1;
+        historyBackButton.setEnabled(multipleEntries && historyIndex < referenceHistory.size() - 1);
+        historyFwdButton.setEnabled(multipleEntries && historyIndex > 0);
+    }
+
+    /**
+     * Renders verses for the reference currently shown in the editor WITHOUT
+     * modifying the history list or historyIndex. Used exclusively by the
+     * navigation buttons so that navigating never creates duplicates.
+     */
+    private void displayVerseDataForCurrentHistoryEntry() {
+        textDisplayPane.setBackground(guiConfig.textAreaBackground != null
+            ? guiConfig.textAreaBackground
+            : UIManager.getColor("TextPane.background"));
+        StyledDocument doc = textDisplayPane.getStyledDocument();
+        setTextSpacing(textDisplayPane, 0.2f, 2.0f, 2.0f);
+
+        ModuleScanner.Module selectedModule = (ModuleScanner.Module) moduleComboBox.getSelectedItem();
+        String reference = (String) referenceInputField.getEditor().getItem();
+
+        if (selectedModule == null || reference == null || reference.trim().isEmpty()) {
+            try { doc.remove(0, doc.getLength()); } catch (BadLocationException e) { /* ignore */ }
+            return;
+        }
+
+        VerseFetcher fetcher = null;
+        try {
+            String userLanguage = (String) languageComboBox.getSelectedItem();
+            if (userLanguage != null) {
+                userLanguage = userLanguage.trim();
+                if (userLanguage.isEmpty()) userLanguage = null;
+            }
+
+            String moduleLanguage = BookMapper.extractModuleLanguage(selectedModule.getPath());
+            BookMapper defaultBookMapper;
+            BookMapper moduleBookMapper;
+
+            AbbreviationManager abbrManager = new AbbreviationManager(configManager, 0);
+            Path abbrFile = abbrManager.ensureAbbreviationFile(selectedModule.getName(), selectedModule.getPath());
+            moduleBookMapper = new BookMapper(abbrManager.loadAbbreviations(abbrFile));
+
+            if (guiConfig.useModuleAbbreviations) {
+                defaultBookMapper = moduleBookMapper;
+            } else {
+                if (customMappingPath != null && Files.exists(customMappingPath)) {
+                    defaultBookMapper = new BookMapper(Files.newInputStream(customMappingPath), userLanguage, moduleLanguage);
+                } else {
+                    defaultBookMapper = BookMappingManager.getBookMapper(configManager, null, userLanguage, moduleLanguage);
+                }
+            }
+
+            VerseIndexManager indexManager = new VerseIndexManager(configManager, 0);
+            Map<Integer, Integer> verseIndex = indexManager.getVerseIndex(selectedModule.getName(), selectedModule.getPath());
+            ReferenceParser parser = new ReferenceParser(defaultBookMapper, verseIndex);
+
+            List<ReferenceParser.RangeWithCount> ranges = parser.parseWithCounts(reference);
+            if (ranges.isEmpty()) {
+                insertDefaultStyledText(doc, MessageFormat.format(
+                    bundle.getString("dialog.message.invalidReference"), reference));
+                return;
+            }
+
+            fetcher = new VerseFetcher(selectedModule.getPath());
+            List<Verse> verses = fetcher.fetch(new ArrayList<>(ranges));
+            List<GuiVerse> guiVerses = buildGuiVerses(verses, ranges, defaultBookMapper,
+                moduleBookMapper, moduleLanguage, userLanguage, selectedModule.getName());
+
+            if (guiConfig.showRawJson) {
+                Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+                insertDefaultStyledText(doc, compactArrayField(gson.toJson(guiVerses), "allBookNames"));
+            } else {
+                new GuiTextFormatter(guiConfig).format(guiVerses, doc);
+            }
+            textDisplayPane.setCaretPosition(0);
+            configManager.setLastUsedModule(selectedModule.getName());
+
+        } catch (Exception e) {
+            insertDefaultStyledText(doc, MessageFormat.format(
+                bundle.getString("dialog.message.errorFetching"), e.getMessage()));
+            e.printStackTrace();
+        } finally {
+            if (fetcher != null) {
+                try { fetcher.close(); } catch (SQLException e) { e.printStackTrace(); }
+            }
+        }
     }
 
     private void selectModulePath() {
         JFileChooser chooser = new JFileChooser();
-        // Set to directory selection only
         chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         chooser.setDialogTitle(bundle.getString("dialog.title.selectModulePath"));
         chooser.setAcceptAllFileFilterUsed(false);
-        // Start from current modules path if it exists
         String currentPath = configManager.getModulesPath();
         if (currentPath != null && !currentPath.isEmpty()) {
             Path currentDir = Paths.get(currentPath);
@@ -300,9 +444,9 @@ public class Gui extends JFrame {
             configManager.setModulesPath(selectedPath.toString());
             modulePathField.setText(configManager.getModulesPath());
             loadModules();
-            JOptionPane.showMessageDialog(this, 
-                MessageFormat.format(bundle.getString("dialog.message.modulePathSet"), selectedPath.toString()), 
-                bundle.getString("dialog.title.success"), 
+            JOptionPane.showMessageDialog(this,
+                MessageFormat.format(bundle.getString("dialog.message.modulePathSet"), selectedPath.toString()),
+                bundle.getString("dialog.title.success"),
                 JOptionPane.INFORMATION_MESSAGE);
         }
     }
@@ -315,7 +459,7 @@ public class Gui extends JFrame {
 
     private void initKeyboardShortcuts() {
         JRootPane rootPane = getRootPane();
-        InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        InputMap inputMap   = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
         ActionMap actionMap = rootPane.getActionMap();
         int menuMask = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
 
@@ -378,17 +522,39 @@ public class Gui extends JFrame {
         actionMap.put("configureAction", new AbstractAction() {
             public void actionPerformed(ActionEvent e) { openConfigurationDialog(); }
         });
+
+        // Alt+B — previous reference; Alt+F — next reference.
+        Action historyBackAction = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) { historyBackButton.doClick(); }
+        };
+        Action historyFwdAction = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) { historyFwdButton.doClick(); }
+        };
+
+        // Root-pane binding (fires when focus is outside the combo editor)
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_B, KeyEvent.ALT_DOWN_MASK), "historyBackAction");
+        actionMap.put("historyBackAction", historyBackAction);
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F, KeyEvent.ALT_DOWN_MASK), "historyFwdAction");
+        actionMap.put("historyFwdAction", historyFwdAction);
+
+        // Editor-level binding — overrides FlatLaf's built-in Emacs actions
+        JTextField editor = (JTextField) referenceInputField.getEditor().getEditorComponent();
+        editor.getActionMap().put("previous-word", null);   // disable Emacs Alt+B
+        editor.getActionMap().put("next-word",     null);   // disable Emacs Alt+F
+        InputMap editorMap = editor.getInputMap(JComponent.WHEN_FOCUSED);
+        editorMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_B, KeyEvent.ALT_DOWN_MASK), "historyBackAction");
+        editorMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F, KeyEvent.ALT_DOWN_MASK), "historyFwdAction");
+        editor.getActionMap().put("historyBackAction", historyBackAction);
+        editor.getActionMap().put("historyFwdAction",  historyFwdAction);
     }
 
     private void copyRichTextToClipboard() {
         StyledDocument doc = textDisplayPane.getStyledDocument();
         String plainText = textDisplayPane.getText();
-
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             RTFEditorKit rtfKit = new RTFEditorKit();
             rtfKit.write(out, doc, 0, doc.getLength());
             byte[] rtfBytes = out.toByteArray();
-
             RtfTransferable transferable = new RtfTransferable(plainText, rtfBytes);
             Toolkit.getDefaultToolkit().getSystemClipboard().setContents(transferable, null);
         } catch (Exception ex) {
@@ -415,22 +581,16 @@ public class Gui extends JFrame {
         try {
             String currentSelectionName = null;
             if (moduleComboBox.getSelectedItem() != null) {
-                // Get the name from the currently selected Module
                 currentSelectionName = ((ModuleScanner.Module) moduleComboBox.getSelectedItem()).getName();
             }
-
             moduleComboBox.removeAllItems();
-
             Path modulePath = Paths.get(configManager.getModulesPath());
             if (modulePath != null && Files.exists(modulePath)) {
                 ModuleScanner scanner = new ModuleScanner();
                 List<ModuleScanner.Module> modules = scanner.findModules(modulePath);
-                
                 for (ModuleScanner.Module module : modules) {
                     moduleComboBox.addItem(module);
                 }
-
-                // Restore selection
                 if (currentSelectionName != null) {
                     for (int i = 0; i < moduleComboBox.getItemCount(); i++) {
                         if (moduleComboBox.getItemAt(i).getName().equals(currentSelectionName)) {
@@ -448,46 +608,102 @@ public class Gui extends JFrame {
     }
 
     private void openMapBrowser() {
-            JFileChooser chooser = new JFileChooser(configManager.getDefaultConfigDir().resolve("mapping").toFile());
-            chooser.setFileFilter(new FileNameExtensionFilter("JSON Mapping Files", "json"));
-            int result = chooser.showOpenDialog(this);
-            if (result == JFileChooser.APPROVE_OPTION) {
-                Path selectedFile = chooser.getSelectedFile().toPath();
-                try {
-                    // Validate the file first
-                    if (BookMapper.isValidMappingFile(Files.newInputStream(selectedFile))) {
-                        // File is valid
-                        customMappingPath = selectedFile;
-                        mappingFileField.setText(customMappingPath.getFileName().toString());
-                        updateAndDisplayVerseData();
-                    } else {
-                        String errorMessage = bundle.getString("error.gui.invalidMappingFile");
-                        String dialogTitle = bundle.getString("error.gui.invalidMappingTitle");
-                        JOptionPane.showMessageDialog(this, errorMessage, dialogTitle, JOptionPane.ERROR_MESSAGE);
-                        // revert to default
-                        customMappingPath = null;
-                        mappingFileField.setText("default_mapping.json");
-                        updateAndDisplayVerseData();
-                    }
-                } catch (IOException ex) {
-                    String errorMessage = MessageFormat.format(bundle.getString("error.gui.fileReadError"), ex.getMessage());
-                    String dialogTitle = bundle.getString("error.gui.fileErrorTitle");
-                    JOptionPane.showMessageDialog(this, errorMessage, dialogTitle, JOptionPane.ERROR_MESSAGE);
+        JFileChooser chooser = new JFileChooser(
+            configManager.getDefaultConfigDir().resolve("mapping").toFile());
+        chooser.setFileFilter(new FileNameExtensionFilter("JSON Mapping Files", "json"));
+        int result = chooser.showOpenDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            Path selectedFile = chooser.getSelectedFile().toPath();
+            try {
+                if (BookMapper.isValidMappingFile(Files.newInputStream(selectedFile))) {
+                    customMappingPath = selectedFile;
+                    mappingFileField.setText(customMappingPath.getFileName().toString());
+                    updateAndDisplayVerseData();
+                } else {
+                    JOptionPane.showMessageDialog(this,
+                        bundle.getString("error.gui.invalidMappingFile"),
+                        bundle.getString("error.gui.invalidMappingTitle"),
+                        JOptionPane.ERROR_MESSAGE);
+                    customMappingPath = null;
+                    mappingFileField.setText("default_mapping.json");
+                    updateAndDisplayVerseData();
                 }
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(this,
+                    MessageFormat.format(bundle.getString("error.gui.fileReadError"), ex.getMessage()),
+                    bundle.getString("error.gui.fileErrorTitle"),
+                    JOptionPane.ERROR_MESSAGE);
             }
         }
+    }
 
     private void quitApplication() {
         dispose();
         onWindowClosed.run();
     }
 
+    private static String escapeHtml(String text) {
+        if (text == null) return "";
+        return text.replace("&", "&amp;")
+                   .replace("<", "&lt;")
+                   .replace(">", "&gt;")
+                   .replace("\"", "&quot;");
+    }
+
+    private static String sanitizeDetailedInfo(String raw) {
+        if (raw == null) return "";
+        String s = raw.trim();
+        s = s.replaceAll("(?i)</body\\s*>", "");
+        s = s.replaceAll("(?i)</html\\s*>", "");
+        s = s.replaceAll("(?i)<p\\s*/>",    "<br><br>");
+        s = s.replaceAll("(?i)<br\\s*/>",   "<br>");
+        s = s.replaceAll("(<br>\\s*){3,}",  "<br><br>");
+        return s.trim();
+    }
+
     private void showModuleInfo() {
         ModuleScanner.Module selectedModule = (ModuleScanner.Module) moduleComboBox.getSelectedItem();
-        String moduleInfoMessage = "<html><div style='width: 400px;'>" + selectedModule.getDescription() + "<br/><br/>" + selectedModule.getDetailedInfo() + "</div></html>";
-        if (selectedModule != null) {
-            JOptionPane.showMessageDialog(this, moduleInfoMessage, bundle.getString("dialog.title.moduleInfo"), JOptionPane.INFORMATION_MESSAGE);
+        if (selectedModule == null) return;
+    
+        StringBuilder html = new StringBuilder();
+        html.append("<html><body style='font-family: sans-serif; padding: 4px;'>");
+        html.append("<h3>").append(escapeHtml(selectedModule.getName())).append("</h3>");
+    
+        String lang = selectedModule.getLanguage();
+        if (lang != null && !lang.isEmpty()) {
+            html.append("<p><b>").append(bundle.getString("moduleMgr.info.language"))
+                .append("</b> ").append(escapeHtml(lang)).append("</p>");
         }
+    
+        String desc = selectedModule.getDescription();
+        if (desc != null && !desc.isEmpty()) {
+            html.append("<p><b>").append(bundle.getString("moduleMgr.info.description"))
+                .append("</b><br>").append(escapeHtml(desc)).append("</p>");
+        }
+    
+        String detail = selectedModule.getDetailedInfo();
+        if (detail != null && !detail.isEmpty()) {
+            html.append("<p>").append(sanitizeDetailedInfo(detail)).append("</p>");
+        }
+    
+        html.append("</body></html>");
+    
+        JTextPane textPane = new JTextPane();
+        textPane.setContentType("text/html");
+        textPane.setText(html.toString());
+        textPane.setEditable(false);
+        textPane.setBackground(UIManager.getColor("Panel.background"));
+        textPane.setCaretPosition(0);
+    
+        JScrollPane scroll = new JScrollPane(textPane);
+        scroll.setPreferredSize(new Dimension(460, 300));
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+    
+        JOptionPane.showMessageDialog(
+            this, scroll,
+            MessageFormat.format(bundle.getString("moduleMgr.info.title"), selectedModule.getName()),
+            JOptionPane.INFORMATION_MESSAGE
+        );
     }
 
     private void loadModules() {
@@ -496,144 +712,161 @@ public class Gui extends JFrame {
             List<ModuleScanner.Module> modules = moduleScanner.findModules(modulesDir);
             moduleComboBox.setModel(new DefaultComboBoxModel<>(new Vector<>(modules)));
         } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, MessageFormat.format(bundle.getString("dialog.message.moduleLoadFailed"), e.getMessage()), bundle.getString("dialog.title.error"), JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this,
+                MessageFormat.format(bundle.getString("dialog.message.moduleLoadFailed"), e.getMessage()),
+                bundle.getString("dialog.title.error"),
+                JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void loadLastUsedModule() {
         String lastUsed = configManager.getLastUsedModule();
-        if (lastUsed != null) {
-            setSelectedModule(lastUsed);
-        }
+        if (lastUsed != null) setSelectedModule(lastUsed);
     }
 
     public void setSelectedModule(String moduleName) {
         for (int i = 0; i < moduleComboBox.getItemCount(); i++) {
             if (moduleComboBox.getItemAt(i).getName().equals(moduleName)) {
-                if (moduleComboBox.getSelectedIndex() != i) {
-                    moduleComboBox.setSelectedIndex(i);
-                }
+                if (moduleComboBox.getSelectedIndex() != i) moduleComboBox.setSelectedIndex(i);
                 return;
             }
         }
     }
 
+    // Shared helper: build GuiVerse list from raw verses + mappers
+    private List<GuiVerse> buildGuiVerses(
+            List<Verse> verses,
+            List<ReferenceParser.RangeWithCount> ranges,
+            BookMapper defaultBookMapper,
+            BookMapper moduleBookMapper,
+            String moduleLanguage,
+            String userLanguage,
+            String moduleName) {
+
+        List<GuiVerse> guiVerses = new ArrayList<>();
+        for (Verse verse : verses) {
+            Reference ref = findContainingReference(ranges, verse);
+            String userProvidedShortName = (ref != null) ? ref.getBookName() : null;
+            int bookNum = verse.getBookNumber();
+
+            Optional<Book> defaultBookOpt = defaultBookMapper.getBook(bookNum);
+            String defaultFullName  = defaultBookOpt.map(Book::getFullName).orElse("");
+            String defaultShortName = defaultBookOpt.map(book ->
+                (userProvidedShortName != null && book.getShortNames().contains(userProvidedShortName))
+                    ? userProvidedShortName
+                    : book.getShortNames().stream().findFirst().orElse("")
+            ).orElse("");
+
+            Optional<Book> moduleBookOpt = moduleBookMapper.getBook(bookNum);
+            String moduleFullName  = moduleBookOpt.map(Book::getFullName).orElse(defaultFullName);
+            String moduleShortName = moduleBookOpt.map(book -> {
+                List<String> shortNames = book.getShortNames();
+                return (shortNames.size() > 1)
+                    ? shortNames.get(1)
+                    : shortNames.stream().findFirst().orElse("");
+            }).orElse(defaultShortName);
+
+            guiVerses.add(new GuiVerse(
+                bookNum, defaultFullName, defaultShortName,
+                moduleFullName, moduleShortName,
+                defaultBookMapper.getAllBookNames(bookNum, moduleBookMapper, moduleLanguage, userLanguage),
+                verse.getChapter(), verse.getVerse(), verse.getText(),
+                moduleName
+            ));
+        }
+        return guiVerses;
+    }
+
+    // Primary lookup — called by user input; manages history
     private void updateAndDisplayVerseData() {
-        textDisplayPane.setBackground(guiConfig.textAreaBackground != null ? guiConfig.textAreaBackground : UIManager.getColor("TextPane.background"));
+        textDisplayPane.setBackground(guiConfig.textAreaBackground != null
+            ? guiConfig.textAreaBackground
+            : UIManager.getColor("TextPane.background"));
         StyledDocument doc = textDisplayPane.getStyledDocument();
-        // line spacing, space above, space below
         setTextSpacing(textDisplayPane, 0.2f, 2.0f, 2.0f);
 
         ModuleScanner.Module selectedModule = (ModuleScanner.Module) moduleComboBox.getSelectedItem();
-        String reference = referenceInputField.getText();
+        String reference = (String) referenceInputField.getEditor().getItem();
 
         if (selectedModule == null || reference == null || reference.trim().isEmpty()) {
-            try {
-                doc.remove(0, doc.getLength());
-            } catch (BadLocationException e) { /* Ignore */ }
+            try { doc.remove(0, doc.getLength()); } catch (BadLocationException e) { /* ignore */ }
             return;
         }
 
         VerseFetcher fetcher = null;
         try {
-            // Get the selected language (will be empty string if nothing selected)
             String userLanguage = (String) languageComboBox.getSelectedItem();
             if (userLanguage != null) {
                 userLanguage = userLanguage.trim();
-                if (userLanguage.isEmpty()) {
-                    userLanguage = null; // Treat empty as no language specified
-                }
+                if (userLanguage.isEmpty()) userLanguage = null;
             }
 
-            // Extract module language
             String moduleLanguage = BookMapper.extractModuleLanguage(selectedModule.getPath());
-
             BookMapper defaultBookMapper;
             BookMapper moduleBookMapper;
 
-            // Conditionally select the default mapping based on the checkbox
             AbbreviationManager abbrManager = new AbbreviationManager(configManager, 0);
             Path abbrFile = abbrManager.ensureAbbreviationFile(selectedModule.getName(), selectedModule.getPath());
             moduleBookMapper = new BookMapper(abbrManager.loadAbbreviations(abbrFile));
 
             if (guiConfig.useModuleAbbreviations) {
-                // If checkbox is selected, use the module's own abbreviations as the default
                 defaultBookMapper = moduleBookMapper;
             } else {
-                // Otherwise, use the standard mapping file logic with language support
                 if (customMappingPath != null && Files.exists(customMappingPath)) {
-                    defaultBookMapper = new BookMapper(Files.newInputStream(customMappingPath), userLanguage, moduleLanguage);
+                    defaultBookMapper = new BookMapper(
+                        Files.newInputStream(customMappingPath), userLanguage, moduleLanguage);
                 } else {
-                    defaultBookMapper = BookMappingManager.getBookMapper(configManager, null, userLanguage, moduleLanguage);
+                    defaultBookMapper = BookMappingManager.getBookMapper(
+                        configManager, null, userLanguage, moduleLanguage);
                 }
             }
 
             VerseIndexManager indexManager = new VerseIndexManager(configManager, 0);
-            Map<Integer, Integer> verseIndex = indexManager.getVerseIndex(selectedModule.getName(), selectedModule.getPath());
+            Map<Integer, Integer> verseIndex = indexManager.getVerseIndex(
+                selectedModule.getName(), selectedModule.getPath());
             ReferenceParser parser = new ReferenceParser(defaultBookMapper, verseIndex);
 
             List<ReferenceParser.RangeWithCount> ranges = parser.parseWithCounts(reference);
             if (ranges.isEmpty()) {
-                insertDefaultStyledText(doc, MessageFormat.format(bundle.getString("dialog.message.invalidReference"), reference));
+                insertDefaultStyledText(doc, MessageFormat.format(
+                    bundle.getString("dialog.message.invalidReference"), reference));
                 return;
             }
 
             fetcher = new VerseFetcher(selectedModule.getPath());
             List<Verse> verses = fetcher.fetch(new ArrayList<>(ranges));
-
-            List<GuiVerse> guiVerses = new ArrayList<>();
-            for (Verse verse : verses) {
-                Reference ref = findContainingReference(ranges, verse);
-                String userProvidedShortName = (ref != null) ? ref.getBookName() : null;
-                int bookNum = verse.getBookNumber();
-
-                Optional<Book> defaultBookOpt = defaultBookMapper.getBook(bookNum);
-                String defaultFullName = defaultBookOpt.map(Book::getFullName).orElse("");
-                String defaultShortName = defaultBookOpt.map(book -> (userProvidedShortName != null && book.getShortNames().contains(userProvidedShortName)) ? userProvidedShortName : book.getShortNames().stream().findFirst().orElse("")).orElse("");
-
-                Optional<Book> moduleBookOpt = moduleBookMapper.getBook(bookNum);
-                String moduleFullName = moduleBookOpt.map(Book::getFullName).orElse(defaultFullName);
-                String moduleShortName = moduleBookOpt.map(book -> {
-                    List<String> shortNames = book.getShortNames();
-                    return (shortNames.size() > 1) ? shortNames.get(1) : shortNames.stream().findFirst().orElse("");
-                }).orElse(defaultShortName);
-
-                guiVerses.add(new GuiVerse(
-                    bookNum,
-                    defaultFullName,
-                    defaultShortName,
-                    moduleFullName,
-                    moduleShortName,
-                    defaultBookMapper.getAllBookNames(bookNum, moduleBookMapper, moduleLanguage, userLanguage),
-                    verse.getChapter(),
-                    verse.getVerse(),
-                    verse.getText(),
-                    selectedModule.getName()
-                ));
-            }
+            List<GuiVerse> guiVerses = buildGuiVerses(verses, ranges, defaultBookMapper,
+                moduleBookMapper, moduleLanguage, userLanguage, selectedModule.getName());
 
             if (guiConfig.showRawJson) {
                 Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-                String printJson = gson.toJson(guiVerses);
-                printJson = compactArrayField(printJson, "allBookNames");
-                insertDefaultStyledText(doc, printJson);
+                insertDefaultStyledText(doc,
+                    compactArrayField(gson.toJson(guiVerses), "allBookNames"));
             } else {
-                GuiTextFormatter formatter = new GuiTextFormatter(guiConfig);
-                formatter.format(guiVerses, doc);
+                new GuiTextFormatter(guiConfig).format(guiVerses, doc);
             }
+
+            // ---- Maintain unique history, most-recently-used first ----
+            String trimmed = reference.trim();
+            int existingIdx = referenceHistory.indexOf(trimmed);
+            if (existingIdx >= 0) referenceHistory.remove(existingIdx);
+            referenceHistory.addFirst(trimmed);
+            referenceInputField.setModel(new DefaultComboBoxModel<>(
+                referenceHistory.toArray(new String[0])));
+            referenceInputField.getEditor().setItem(trimmed);
+            historyIndex = -1;
+            updateNavigationButtonStates();
+
             textDisplayPane.setCaretPosition(0);
             configManager.setLastUsedModule(selectedModule.getName());
 
         } catch (Exception e) {
-            insertDefaultStyledText(doc, MessageFormat.format(bundle.getString("dialog.message.errorFetching"), e.getMessage()));
+            insertDefaultStyledText(doc, MessageFormat.format(
+                bundle.getString("dialog.message.errorFetching"), e.getMessage()));
             e.printStackTrace();
         } finally {
             if (fetcher != null) {
-                try {
-                    fetcher.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
+                try { fetcher.close(); } catch (SQLException e) { e.printStackTrace(); }
             }
         }
     }
@@ -641,19 +874,17 @@ public class Gui extends JFrame {
     private void insertDefaultStyledText(StyledDocument doc, String text) {
         try {
             doc.remove(0, doc.getLength());
-
             TextStyle infoStyle = guiConfig.styles.get("infoText");
             SimpleAttributeSet attrs = new SimpleAttributeSet();
-
             if (infoStyle != null) {
                 StyleConstants.setFontFamily(attrs, infoStyle.fontName);
                 StyleConstants.setFontSize(attrs, infoStyle.fontSize);
-                StyleConstants.setBold(attrs, (infoStyle.fontStyle & Font.BOLD) != 0);
+                StyleConstants.setBold(attrs,   (infoStyle.fontStyle & Font.BOLD)   != 0);
                 StyleConstants.setItalic(attrs, (infoStyle.fontStyle & Font.ITALIC) != 0);
-                Color fg = infoStyle.color != null ? infoStyle.color : UIManager.getColor("TextPane.foreground");
+                Color fg = infoStyle.color != null
+                    ? infoStyle.color : UIManager.getColor("TextPane.foreground");
                 StyleConstants.setForeground(attrs, fg);
             }
-
             doc.insertString(0, text, attrs);
         } catch (BadLocationException e) {
             e.printStackTrace();
@@ -663,8 +894,10 @@ public class Gui extends JFrame {
     private Reference findContainingReference(List<ReferenceParser.RangeWithCount> ranges, Verse verse) {
         for (ReferenceParser.Range range : ranges) {
             if (verse.getBookNumber() == range.start.getBook() &&
-                    verse.getChapter() >= range.start.getChapter() && verse.getChapter() <= range.end.getChapter() &&
-                    verse.getVerse() >= range.start.getVerse() && verse.getVerse() <= range.end.getVerse()) {
+                    verse.getChapter() >= range.start.getChapter() &&
+                    verse.getChapter() <= range.end.getChapter() &&
+                    verse.getVerse()   >= range.start.getVerse()   &&
+                    verse.getVerse()   <= range.end.getVerse()) {
                 return range.start;
             }
         }
@@ -672,47 +905,38 @@ public class Gui extends JFrame {
     }
 
     private static class ModuleRenderer extends DefaultListCellRenderer {
-
         @Override
-        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+        public Component getListCellRendererComponent(JList<?> list, Object value,
+                int index, boolean isSelected, boolean cellHasFocus) {
             super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-
             if (value instanceof ModuleScanner.Module) {
                 ModuleScanner.Module module = (ModuleScanner.Module) value;
-
-                if (index == -1) {
-                    setText(module.getName());
-                    return this;
-                }
+                if (index == -1) { setText(module.getName()); return this; }
 
                 JPanel panel = new JPanel(new GridBagLayout());
                 GridBagConstraints gbc = new GridBagConstraints();
                 panel.setBackground(isSelected ? list.getSelectionBackground() : list.getBackground());
-
-                Color foreground = isSelected ? list.getSelectionForeground() : list.getForeground();
+                Color fg = isSelected ? list.getSelectionForeground() : list.getForeground();
 
                 JLabel langLabel = new JLabel(module.getLanguage());
-                langLabel.setForeground(foreground);
+                langLabel.setForeground(fg);
                 langLabel.setPreferredSize(new Dimension(35, langLabel.getPreferredSize().height));
-                gbc.gridx = 0;
-                gbc.weightx = 0;
+                gbc.gridx = 0; gbc.weightx = 0;
                 gbc.fill = GridBagConstraints.HORIZONTAL;
                 gbc.insets = new Insets(1, 2, 1, 2);
                 gbc.anchor = GridBagConstraints.WEST;
                 panel.add(langLabel, gbc);
 
                 JLabel nameLabel = new JLabel(module.getName());
-                nameLabel.setForeground(foreground);
+                nameLabel.setForeground(fg);
                 nameLabel.setFont(nameLabel.getFont().deriveFont(Font.BOLD));
                 nameLabel.setPreferredSize(new Dimension(80, nameLabel.getPreferredSize().height));
-                gbc.gridx = 1;
-                gbc.weightx = 0;
+                gbc.gridx = 1; gbc.weightx = 0;
                 panel.add(nameLabel, gbc);
 
                 JLabel descLabel = new JLabel(module.getDescription());
-                descLabel.setForeground(foreground);
-                gbc.gridx = 2;
-                gbc.weightx = 1.0;
+                descLabel.setForeground(fg);
+                gbc.gridx = 2; gbc.weightx = 1.0;
                 panel.add(descLabel, gbc);
 
                 return panel;
@@ -723,14 +947,11 @@ public class Gui extends JFrame {
 
     private static String compactArrayField(String json, String fieldName) {
         Pattern pattern = Pattern.compile(
-            "\"" + fieldName + "\":\\s*\\[\\s*([^\\]]+?)\\s*\\]",
-            Pattern.DOTALL
-        );
+            "\"" + fieldName + "\":\\s*\\[\\s*([^\\]]+?)\\s*\\]", Pattern.DOTALL);
         Matcher matcher = pattern.matcher(json);
         StringBuffer result = new StringBuffer();
         while (matcher.find()) {
-            String arrayContent = matcher.group(1);
-            String compacted = arrayContent
+            String compacted = matcher.group(1)
                 .replaceAll("\\s+", " ")
                 .replaceAll(",\\s+", ", ")
                 .trim();
@@ -747,54 +968,38 @@ public class Gui extends JFrame {
         private static final DataFlavor[] flavors;
 
         static {
-            DataFlavor tempRtfFlavor = null;
-            try {
-                tempRtfFlavor = new DataFlavor("text/rtf; class=java.io.InputStream");
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            }
-            rtfFlavor = tempRtfFlavor;
+            DataFlavor tmp = null;
+            try { tmp = new DataFlavor("text/rtf; class=java.io.InputStream"); }
+            catch (ClassNotFoundException e) { e.printStackTrace(); }
+            rtfFlavor = tmp;
             flavors = new DataFlavor[]{rtfFlavor, DataFlavor.stringFlavor};
         }
 
         public RtfTransferable(String plainText, byte[] rtfBytes) {
             this.plainText = plainText;
-            this.rtfBytes = rtfBytes;
+            this.rtfBytes  = rtfBytes;
         }
 
-        @Override
-        public DataFlavor[] getTransferDataFlavors() {
-            return flavors.clone();
-        }
+        @Override public DataFlavor[] getTransferDataFlavors() { return flavors.clone(); }
 
         @Override
         public boolean isDataFlavorSupported(DataFlavor flavor) {
-            for (DataFlavor f : flavors) {
-                if (f.equals(flavor)) {
-                    return true;
-                }
-            }
+            for (DataFlavor f : flavors) if (f.equals(flavor)) return true;
             return false;
         }
 
         @Override
         public Object getTransferData(DataFlavor flavor) throws UnsupportedFlavorException {
-            if (flavor.equals(rtfFlavor)) {
-                return new ByteArrayInputStream(rtfBytes);
-            } else if (flavor.equals(DataFlavor.stringFlavor)) {
-                return plainText;
-            }
+            if (flavor.equals(rtfFlavor))               return new ByteArrayInputStream(rtfBytes);
+            if (flavor.equals(DataFlavor.stringFlavor)) return plainText;
             throw new UnsupportedFlavorException(flavor);
         }
     }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            try {
-                UIManager.setLookAndFeel(new FlatLightLaf());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            try { UIManager.setLookAndFeel(new FlatLightLaf()); }
+            catch (Exception e) { e.printStackTrace(); }
             Gui gui = new Gui(null, null, () -> System.exit(0));
             gui.setVisible(true);
         });

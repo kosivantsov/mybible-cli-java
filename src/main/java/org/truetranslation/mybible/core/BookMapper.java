@@ -47,6 +47,7 @@ public class BookMapper {
 
     // Default language used when no specific language is provided
     private static final String DEFAULT_FALLBACK = "default";
+    private static final String DEFAULT_MAPPING_FILENAME = "default_mapping.json";
 
     public BookMapper(String resourcePath) {
         this(resourcePath, null, null);
@@ -141,6 +142,16 @@ public class BookMapper {
     private void loadLanguageAwareMapping(JsonObject jsonObject) {
         if (jsonObject == null) return;
 
+        // Load default mapping once for fallback canonical names
+        JsonObject defaultMappingJson = null;
+        try (InputStream defaultStream = BookMapper.class.getResourceAsStream("/" + DEFAULT_MAPPING_FILENAME)) {
+            if (defaultStream != null) {
+                defaultMappingJson = new Gson().fromJson(new InputStreamReader(defaultStream), JsonObject.class);
+            }
+        } catch (IOException e) {
+            // proceed without default fallback
+        }
+
         for (Map.Entry<String, JsonElement> entry : jsonObject.entrySet()) {
             try {
                 int bookNumber = Integer.parseInt(entry.getKey());
@@ -150,18 +161,41 @@ public class BookMapper {
                     Map<String, Object> bookData = parseBookData(bookArray);
                     languageAwareMapping.put(bookNumber, bookData);
 
-                    // Create a Book object using default fallback names
+                    // Determine primary names: prefer inline fallback, then default_mapping.json
                     List<String> fallbackNames = (List<String>) bookData.get(DEFAULT_FALLBACK);
+                    List<String> primaryNames = null;
+
                     if (fallbackNames != null && !fallbackNames.isEmpty()) {
-                        String fullName = fallbackNames.get(0);
-                        Book book = new Book(bookNumber, fullName, fallbackNames);
-                        booksByNumber.put(bookNumber, book);
+                        primaryNames = fallbackNames;
+                    } else if (defaultMappingJson != null && defaultMappingJson.has(entry.getKey())) {
+                        JsonArray defaultArray = defaultMappingJson.get(entry.getKey()).getAsJsonArray();
+                        Map<String, Object> defaultBookData = parseBookData(defaultArray);
+                        primaryNames = (List<String>) defaultBookData.get(DEFAULT_FALLBACK);
+                    }
 
-                        // Always register all fallback names for lookup
-                        for (String name : fallbackNames) {
-                            booksByName.put(name.trim(), book);
+                    if (primaryNames == null || primaryNames.isEmpty()) continue;
+
+                    String fullName = primaryNames.get(0);
+                    Book book = new Book(bookNumber, fullName, primaryNames);
+                    booksByNumber.put(bookNumber, book);
+
+                    // Always register primary (fallback) names for lookup
+                    for (String name : primaryNames) {
+                        booksByName.put(name.trim(), book);
+                    }
+
+                    if (userLanguage == null && moduleLanguage == null) {
+                        // No language filter — register every name from every language key
+                        for (Map.Entry<String, Object> langEntry : bookData.entrySet()) {
+                            if (langEntry.getKey().equals(DEFAULT_FALLBACK)) continue;
+                            List<String> langNames = (List<String>) langEntry.getValue();
+                            if (langNames != null) {
+                                for (String name : langNames) {
+                                    booksByName.put(name.trim(), book);
+                                }
+                            }
                         }
-
+                    } else {
                         // Register module language names (if module language is specified)
                         if (moduleLanguage != null && !moduleLanguage.trim().isEmpty()) {
                             List<String> moduleLangNames = (List<String>) bookData.get(moduleLanguage);
@@ -173,8 +207,8 @@ public class BookMapper {
                         }
 
                         // Register user language names (if user language is specified and different from module language)
-                        if (userLanguage != null && !userLanguage.trim().isEmpty() 
-                            && !userLanguage.equals(moduleLanguage)) {
+                        if (userLanguage != null && !userLanguage.trim().isEmpty()
+                                && !userLanguage.equals(moduleLanguage)) {
                             List<String> userLangNames = (List<String>) bookData.get(userLanguage);
                             if (userLangNames != null) {
                                 for (String name : userLangNames) {

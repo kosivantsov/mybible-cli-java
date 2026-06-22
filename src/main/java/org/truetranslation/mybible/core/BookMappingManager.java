@@ -66,12 +66,28 @@ public class BookMappingManager {
 
         if (prefix != null && !prefix.trim().isEmpty()) {
             // A custom prefix is provided. Attempt to use the custom file.
-            Path customMappingFile = configDir.resolve(prefix + "_mapping.json");
-            if (Files.exists(customMappingFile)) {
-                mappingFile = customMappingFile;
+            Path prefixPath = Path.of(prefix);
+
+            if (prefixPath.isAbsolute() || prefix.contains("/") || prefix.contains("\\")) {
+                // Looks like an explicit file path — use it directly
+                if (Files.exists(prefixPath)) {
+                    mappingFile = prefixPath;
+                }
             } else {
+                // Try <config>/<prefix>_mapping.json first, then <config>/mapping/<prefix>_mapping.json
+                Path candidate1 = configDir.resolve(prefix + "_mapping.json");
+                Path candidate2 = configDir.resolve("mapping").resolve(prefix + "_mapping.json");
+
+                if (Files.exists(candidate1)) {
+                    mappingFile = candidate1;
+                } else if (Files.exists(candidate2)) {
+                    mappingFile = candidate2;
+                }
+            }
+
+            if (mappingFile == null) {
                 if (verbosity > 0) {
-                    String message = MessageFormat.format(bundle.getString("info.mapping.fallback"), customMappingFile.getFileName().toString());
+                    String message = MessageFormat.format(bundle.getString("info.mapping.fallback"), prefix + "_mapping.json");
                     System.out.println(message);
                 }
             }
