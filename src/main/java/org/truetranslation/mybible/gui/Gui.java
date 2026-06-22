@@ -707,7 +707,7 @@ public class Gui extends JFrame {
         textPane.setCaretPosition(0);
 
         JScrollPane scroll = new JScrollPane(textPane);
-        scroll.setPreferredSize(new Dimension(460, 300));
+        scroll.setPreferredSize(new Dimension(450, 380));
         scroll.setBorder(BorderFactory.createEmptyBorder());
 
         JOptionPane.showMessageDialog(

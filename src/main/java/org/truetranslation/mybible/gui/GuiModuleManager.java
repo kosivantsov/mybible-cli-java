@@ -750,6 +750,31 @@ public class GuiModuleManager extends JDialog {
         progressDialog.setVisible(true);
     }
 
+private static String escapeHtml(String text) {
+    if (text == null) return "";
+    return text.replace("&", "&amp;")
+               .replace("<", "&lt;")
+               .replace(">", "&gt;")
+               .replace("\"", "&quot;")
+               .replace("\n", "<br>")
+               .replace("\r", "");
+}
+
+private static String sanitizeDetailedInfo(String raw) {
+    if (raw == null) return "";
+    String s = raw.trim();
+    s = s.replaceAll("(?is)<head[^>]*>.*?</head\\s*>", "");
+    s = s.replaceAll("(?i)<html[^>]*>",  "");
+    s = s.replaceAll("(?i)</html\\s*>",  "");
+    s = s.replaceAll("(?i)<body[^>]*>",  "");
+    s = s.replaceAll("(?i)</body\\s*>",  "");
+    s = s.replaceAll("(?i)<p\\s*/>",     "<br><br>");
+    s = s.replaceAll("(?i)<br\\s*/>",    "<br>");
+    s = s.replaceAll("(?i)<br\\s*>",     "<br>");
+    s = s.replaceAll("(<br>\\s*){3,}",   "<br><br>");
+    return s.trim();
+}
+
 private void showModuleInfo() {
     int selectedRow = moduleTable.getSelectedRow();
     if (selectedRow < 0) {
@@ -767,41 +792,41 @@ private void showModuleInfo() {
         ModuleManager.ModuleInfo info = moduleManager.getModuleInfo(moduleName);
 
         StringBuilder infoText = new StringBuilder();
-        infoText.append("<html><body style='width: 400px;'>");
-        
+        infoText.append("<html><body style='font-family: sans-serif; padding: 4px;'>");
+
         // Module name as heading
-        infoText.append("<h3>").append(info.cached.name).append("</h3>");
-        
+        infoText.append("<h3>").append(escapeHtml(info.cached.name)).append("</h3>");
+
         // Language
         infoText.append("<p><b>").append(bundle.getString("moduleMgr.info.language")).append("</b> ")
-            .append(info.cached.language != null ? info.cached.language : "N/A").append("</p>");
-        
+            .append(escapeHtml(info.cached.language != null ? info.cached.language : "N/A")).append("</p>");
+
         // Type
         infoText.append("<p><b>").append(bundle.getString("moduleMgr.info.type")).append("</b> ")
-            .append(info.cached.moduleType).append("</p>");
-        
+            .append(escapeHtml(info.cached.moduleType)).append("</p>");
+
         // Latest version
         infoText.append("<p><b>").append(bundle.getString("moduleMgr.info.latestVersion")).append("</b> ")
-            .append(info.cached.updateDate).append("</p>");
-        
-        // Description
+            .append(escapeHtml(info.cached.updateDate)).append("</p>");
+
+        // Description — escape so newlines become <br> and stray tags are neutralised
         if (info.cached.description != null && !info.cached.description.isEmpty()) {
             infoText.append("<p><b>").append(bundle.getString("moduleMgr.info.description")).append("</b><br>")
-                .append(info.cached.description).append("</p>");
+                .append(escapeHtml(info.cached.description)).append("</p>");
         }
-        
+
         // Installation status
         if (info.isInstalled) {
             infoText.append("<p><b>").append(bundle.getString("moduleMgr.info.status")).append("</b> ")
                 .append(bundle.getString("moduleMgr.info.installed")).append("</p>");
-            
+
             infoText.append("<p><b>").append(bundle.getString("moduleMgr.info.installed")).append("</b> ")
-                .append(info.installed.updateDate).append("</p>");
-            
+                .append(escapeHtml(info.installed.updateDate)).append("</p>");
+
             if (info.hasUpdate) {
                 infoText.append("<p><b style='color: #0066cc;'>")
                     .append(bundle.getString("moduleMgr.info.upgradeAvailable"))
-                    .append("</b> v").append(info.cached.updateDate).append("</p>");
+                    .append("</b> v").append(escapeHtml(info.cached.updateDate)).append("</p>");
             } else {
                 infoText.append("<p><b>").append(bundle.getString("moduleMgr.info.status")).append("</b> ")
                     .append(bundle.getString("moduleMgr.info.upToDate")).append("</p>");
@@ -813,8 +838,20 @@ private void showModuleInfo() {
 
         infoText.append("</body></html>");
 
+        // Use a scrollable JTextPane so HTML renders properly and content isn't truncated
+        JTextPane textPane = new JTextPane();
+        textPane.setContentType("text/html");
+        textPane.setText(infoText.toString());
+        textPane.setEditable(false);
+        textPane.setBackground(UIManager.getColor("Panel.background"));
+        textPane.setCaretPosition(0);
+
+        JScrollPane scroll = new JScrollPane(textPane);
+        scroll.setPreferredSize(new Dimension(450, 380));
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+
         JOptionPane.showMessageDialog(this,
-            infoText.toString(),
+            scroll,
             MessageFormat.format(bundle.getString("moduleMgr.info.title"), moduleName),
             JOptionPane.INFORMATION_MESSAGE);
 
@@ -825,62 +862,6 @@ private void showModuleInfo() {
             JOptionPane.ERROR_MESSAGE);
     }
 }
-
-
-    // private void showModuleInfo() {
-    //     int selectedRow = moduleTable.getSelectedRow();
-    //     if (selectedRow < 0) {
-    //         JOptionPane.showMessageDialog(this,
-    //             bundle.getString("moduleMgr.error.noSelection"),
-    //             bundle.getString("moduleMgr.info.noSelectionTitle"),
-    //             JOptionPane.INFORMATION_MESSAGE);
-    //         return;
-    //     }
-// 
-    //     int modelRow = moduleTable.convertRowIndexToModel(selectedRow);
-    //     String moduleName = (String) tableModel.getValueAt(modelRow, 1);
-// 
-    //     try {
-    //         ModuleManager.ModuleInfo info = moduleManager.getModuleInfo(moduleName);
-// 
-    //         StringBuilder infoText = new StringBuilder();
-    //         infoText.append(bundle.getString("moduleMgr.info.name")).append(" ").append(info.cached.name).append("\n");
-    //         infoText.append(bundle.getString("moduleMgr.info.language")).append(" ")
-    //             .append(info.cached.language != null ? info.cached.language : "N/A").append("\n");
-    //         infoText.append(bundle.getString("moduleMgr.info.type")).append(" ").append(info.cached.moduleType).append("\n");
-    //         infoText.append(bundle.getString("moduleMgr.info.latestVersion")).append(" ").append(info.cached.updateDate).append("\n");
-    //         infoText.append(bundle.getString("moduleMgr.info.description")).append(" ").append(info.cached.description).append("\n\n");
-// 
-    //         if (info.isInstalled) {
-    //             infoText.append(bundle.getString("moduleMgr.info.installed")).append(" ").append(info.installed.updateDate).append("\n");
-    //             if (info.hasUpdate) {
-    //                 infoText.append(bundle.getString("moduleMgr.info.upgradeAvailable")).append(" ")
-    //                     .append(info.cached.updateDate).append("\n");
-    //             } else {
-    //                 infoText.append(bundle.getString("moduleMgr.info.status")).append(" ")
-    //                     .append(bundle.getString("moduleMgr.info.upToDate")).append("\n");
-    //             }
-    //         } else {
-    //             infoText.append(bundle.getString("moduleMgr.info.status")).append(" ")
-    //                 .append(bundle.getString("moduleMgr.info.notInstalled")).append("\n");
-    //         }
-// 
-    //         JTextArea textArea = new JTextArea(infoText.toString());
-    //         textArea.setEditable(false);
-    //         textArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-// 
-    //         JOptionPane.showMessageDialog(this,
-    //             new JScrollPane(textArea),
-    //             MessageFormat.format(bundle.getString("moduleMgr.info.title"), moduleName),
-    //             JOptionPane.INFORMATION_MESSAGE);
-// 
-    //     } catch (IOException e) {
-    //         JOptionPane.showMessageDialog(this,
-    //             MessageFormat.format(bundle.getString("moduleMgr.error.infoFailed"), e.getMessage()),
-    //             bundle.getString("error.title"),
-    //             JOptionPane.ERROR_MESSAGE);
-    //     }
-    // }
 
     private void installFromFile() {
         JFileChooser fileChooser = new JFileChooser();
