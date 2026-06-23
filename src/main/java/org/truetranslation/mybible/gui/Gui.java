@@ -13,6 +13,8 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.ActionEvent;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -84,6 +86,7 @@ public class Gui extends JFrame {
     };
 
     private JTextPane textDisplayPane;
+    private JScrollPane textScrollPane;
     private JComboBox<HistoryEntry> referenceInputField;
     private final LinkedList<HistoryEntry> referenceHistory = new LinkedList<>();
     private int historyIndex = -1;
@@ -95,6 +98,16 @@ public class Gui extends JFrame {
     private JTextField mappingFileField;
     private JComboBox<String> languageComboBox;
     private JCheckBox useModuleAbbrsCheckbox;
+
+    // collapsible advanced panel
+    private JPanel advancedPanel;
+    private JButton toggleAdvancedButton;
+    private boolean advancedExpanded = false;
+    private boolean ignoreNextResize = false;
+
+    //buttons within this panel
+    private JButton mapBrowseButton;
+    private JButton setModulePathButton;
 
     private final ConfigManager configManager;
     private final ModuleScanner moduleScanner;
@@ -177,7 +190,24 @@ public class Gui extends JFrame {
         textDisplayPane = new JTextPane();
         textDisplayPane.setEditable(false);
         textDisplayPane.setMargin(new Insets(5, 5, 5, 5));
-        add(new JScrollPane(textDisplayPane), BorderLayout.CENTER);
+        textScrollPane = new JScrollPane(textDisplayPane);
+        textScrollPane.setPreferredSize(new Dimension(780, 400));
+        add(textScrollPane, BorderLayout.CENTER);
+
+        // Track manual window resizes to update textScrollPane preferred size,
+        // but ignore resizes triggered by the collapse/expand toggle.
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                if (ignoreNextResize) {
+                    ignoreNextResize = false;
+                    return;
+                }
+                textScrollPane.setPreferredSize(new Dimension(
+                    textScrollPane.getWidth(),
+                    textScrollPane.getHeight()));
+            }
+        });
 
         JPanel bottomContainer = new JPanel(new BorderLayout(0, 10));
         JPanel inputPanel = new JPanel(new GridBagLayout());
@@ -192,7 +222,6 @@ public class Gui extends JFrame {
         referenceInputField = new JComboBox<>();
         referenceInputField.setEditable(true);
         referenceInputField.setPrototypeDisplayValue(new HistoryEntry("Genesis 1:1-10", ""));
-        // Editor shows only the reference string, not the full HistoryEntry.toString()
         referenceInputField.setEditor(new BasicComboBoxEditor() {
             @Override
             public void setItem(Object item) {
@@ -208,7 +237,7 @@ public class Gui extends JFrame {
         JButton showButton = new JButton(bundle.getString("button.show"));
         inputPanel.add(showButton, gbc);
 
-        // Row 1 — history navigation buttons, aligned under the reference combo
+        // Row 1 — history navigation buttons
         gbc.gridy = 1; gbc.gridx = 1; gbc.weightx = 1.0; gbc.gridwidth = 1;
         gbc.insets = new Insets(0, 5, 2, 5);
         historyBackButton = new JButton("◀");
@@ -237,49 +266,84 @@ public class Gui extends JFrame {
         JButton infoButton = new JButton(bundle.getString("button.info"));
         inputPanel.add(infoButton, gbc);
 
-        // Row 3 — module path
-        gbc.gridy = 3; gbc.gridx = 0;
-        inputPanel.add(new JLabel(bundle.getString("label.modulePath")), gbc);
-        gbc.gridx = 1;
+        // Row 3 — toggle button for advanced options
+        gbc.gridy = 3; gbc.gridx = 0; gbc.gridwidth = 3; gbc.weightx = 1.0;
+        gbc.insets = new Insets(0, 5, 0, 5);
+        toggleAdvancedButton = new JButton("▼  " + bundle.getString("button.advancedOptions"));
+        toggleAdvancedButton.setHorizontalAlignment(SwingConstants.LEFT);
+        toggleAdvancedButton.setBorderPainted(false);
+        toggleAdvancedButton.setContentAreaFilled(false);
+        toggleAdvancedButton.setFocusPainted(false);
+        toggleAdvancedButton.setMargin(new Insets(0, 0, 0, 0));
+        toggleAdvancedButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        //toggleAdvancedButton.setFont(toggleAdvancedButton.getFont().deriveFont(Font.BOLD));
+        inputPanel.add(toggleAdvancedButton, gbc);
+        gbc.insets = new Insets(2, 5, 2, 5);
+        gbc.gridwidth = 1;
+
+        // Row 4 — collapsible advanced panel
+        advancedPanel = new JPanel(new GridBagLayout());
+        advancedPanel.setVisible(false);
+        GridBagConstraints agbc = new GridBagConstraints();
+        agbc.insets = new Insets(2, 5, 2, 5);
+        agbc.fill = GridBagConstraints.HORIZONTAL;
+
+        agbc.gridy = 0; agbc.gridx = 0; agbc.weightx = 0;
+        advancedPanel.add(new JLabel(bundle.getString("label.modulePath")), agbc);
+        agbc.gridx = 1; agbc.weightx = 1.0;
         modulePathField = new JTextField(configManager.getModulesPath());
         modulePathField.setEditable(false);
-        inputPanel.add(modulePathField, gbc);
-        gbc.gridx = 2;
-        JButton setModulePathButton = new JButton(bundle.getString("button.modulePathSet"));
-        inputPanel.add(setModulePathButton, gbc);
+        advancedPanel.add(modulePathField, agbc);
+        agbc.gridx = 2; agbc.weightx = 0;
+        setModulePathButton = new JButton(bundle.getString("button.modulePathSet"));
+        advancedPanel.add(setModulePathButton, agbc);
 
-        // Row 4 — raw JSON checkbox
-        gbc.gridy = 4; gbc.gridx = 1; gbc.gridwidth = 2;
+        agbc.gridy = 1; agbc.gridx = 1; agbc.gridwidth = 2;
         rawJsonCheckbox = new JCheckBox(bundle.getString("checkbox.rawJson"));
+        rawJsonCheckbox.setToolTipText(bundle.getString("dialog.tooltip.rawJson"));
         rawJsonCheckbox.setSelected(guiConfig.showRawJson);
-        inputPanel.add(rawJsonCheckbox, gbc);
+        advancedPanel.add(rawJsonCheckbox, agbc);
 
-        // Row 5 — mapping file
-        gbc.gridy = 5; gbc.gridx = 0; gbc.gridwidth = 1; gbc.weightx = 0;
-        inputPanel.add(new JLabel(bundle.getString("label.mappingFile")), gbc);
-        gbc.gridx = 1; gbc.weightx = 1.0;
+        agbc.gridy = 2; agbc.gridx = 0; agbc.gridwidth = 1; agbc.weightx = 0;
+        advancedPanel.add(new JLabel(bundle.getString("label.mappingFile")), agbc);
+        agbc.gridx = 1; agbc.weightx = 1.0;
         mappingFileField = new JTextField("default_mapping.json");
         mappingFileField.setEditable(false);
-        inputPanel.add(mappingFileField, gbc);
-        gbc.gridx = 2; gbc.weightx = 0;
-        JButton mapBrowseButton = new JButton(bundle.getString("button.browse"));
-        inputPanel.add(mapBrowseButton, gbc);
+        mappingFileField.setToolTipText(bundle.getString("dialog.tooltip.mappingFile"));
+        advancedPanel.add(mappingFileField, agbc);
+        agbc.gridx = 2; agbc.weightx = 0;
+        mapBrowseButton = new JButton(bundle.getString("button.browse"));
+        advancedPanel.add(mapBrowseButton, agbc);
 
-        // Row 6 — abbreviation language
-        gbc.gridy = 6; gbc.gridx = 0; gbc.gridwidth = 1; gbc.weightx = 0;
-        inputPanel.add(new JLabel(bundle.getString("label.abbrLanguage")), gbc);
-        gbc.gridx = 1; gbc.weightx = 1.0; gbc.gridwidth = 1;
+        agbc.gridy = 3; agbc.gridx = 0; agbc.gridwidth = 1; agbc.weightx = 0;
+        advancedPanel.add(new JLabel(bundle.getString("label.abbrLanguage")), agbc);
+        agbc.gridx = 1; agbc.weightx = 1.0; agbc.gridwidth = 1;
         languageComboBox = new JComboBox<>(LANGUAGE_CODES);
         languageComboBox.setEditable(true);
         languageComboBox.setSelectedIndex(0);
         languageComboBox.setToolTipText(bundle.getString("dialog.tooltip.abbrLanguage"));
-        inputPanel.add(languageComboBox, gbc);
+        advancedPanel.add(languageComboBox, agbc);
 
-        // Row 7 — use module abbreviations checkbox
-        gbc.gridy = 7; gbc.gridx = 1; gbc.gridwidth = 2;
+        agbc.gridy = 4; agbc.gridx = 1; agbc.gridwidth = 2;
         useModuleAbbrsCheckbox = new JCheckBox(bundle.getString("label.useModuleAbbrs"));
         useModuleAbbrsCheckbox.setSelected(guiConfig.useModuleAbbreviations);
-        inputPanel.add(useModuleAbbrsCheckbox, gbc);
+        useModuleAbbrsCheckbox.setToolTipText(bundle.getString("dialog.tooltip.useModuleAbbrs"));
+        advancedPanel.add(useModuleAbbrsCheckbox, agbc);
+
+        advancedPanel.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
+        gbc.gridy = 4; gbc.gridx = 0; gbc.gridwidth = 3; gbc.weightx = 1.0;
+        inputPanel.add(advancedPanel, gbc);
+        gbc.gridwidth = 1;
+        
+        JButton[] rightColumnButtons = { showButton, infoButton, setModulePathButton, mapBrowseButton };
+        int maxWidth = 0;
+        for (JButton b : rightColumnButtons) {
+            maxWidth = Math.max(maxWidth, b.getPreferredSize().width);
+        }
+        Dimension unifiedSize = new Dimension(maxWidth, showButton.getPreferredSize().height);
+        for (JButton b : rightColumnButtons) {
+            b.setPreferredSize(unifiedSize);
+        }
 
         bottomContainer.add(inputPanel, BorderLayout.NORTH);
 
@@ -302,6 +366,7 @@ public class Gui extends JFrame {
             guiConfig.useModuleAbbreviations = useModuleAbbrsCheckbox.isSelected();
             guiConfigManager.setConfig(guiConfig);
             guiConfigManager.saveConfig();
+            updateMappingRowsEnabled();
             updateAndDisplayVerseData();
         });
         rawJsonCheckbox.addActionListener(e -> {
@@ -317,6 +382,23 @@ public class Gui extends JFrame {
         mapBrowseButton.addActionListener(e -> openMapBrowser());
         historyBackButton.addActionListener(e -> navigateBack());
         historyFwdButton.addActionListener(e -> navigateForward());
+        toggleAdvancedButton.addActionListener(e -> toggleAdvancedPanel());
+    }
+
+    private void toggleAdvancedPanel() {
+        int panelHeight = advancedPanel.getPreferredSize().height;
+
+        advancedExpanded = !advancedExpanded;
+        advancedPanel.setVisible(advancedExpanded);
+        toggleAdvancedButton.setText(
+            (advancedExpanded ? "▼  " : "▶  ") + bundle.getString("button.advancedOptions"));
+
+        ignoreNextResize = true;
+        Dimension size = getSize();
+        size.height += advancedExpanded ? panelHeight : -panelHeight;
+        setSize(size);
+
+        revalidate();
     }
 
     // History navigation
@@ -353,16 +435,11 @@ public class Gui extends JFrame {
         historyFwdButton.setEnabled(multipleEntries && historyIndex > 0);
     }
 
-    /** Restores both the reference field and the module selector from a history entry. */
     private void applyHistoryEntry(HistoryEntry entry) {
         referenceInputField.getEditor().setItem(entry.reference);
         setSelectedModule(entry.moduleName);
     }
 
-    /**
-     * Renders verses for the reference currently shown in the editor WITHOUT
-     * modifying the history list or historyIndex.
-     */
     private void displayVerseDataForCurrentHistoryEntry() {
         textDisplayPane.setBackground(guiConfig.textAreaBackground != null
             ? guiConfig.textAreaBackground
@@ -744,7 +821,6 @@ public class Gui extends JFrame {
         }
     }
 
-    // Shared helper: build GuiVerse list from raw verses + mappers
     private List<GuiVerse> buildGuiVerses(
             List<Verse> verses,
             List<ReferenceParser.RangeWithCount> ranges,
@@ -788,7 +864,6 @@ public class Gui extends JFrame {
         return guiVerses;
     }
 
-    // Primary lookup — called by user input; manages history
     private void updateAndDisplayVerseData() {
         textDisplayPane.setBackground(guiConfig.textAreaBackground != null
             ? guiConfig.textAreaBackground
@@ -857,7 +932,6 @@ public class Gui extends JFrame {
                 new GuiTextFormatter(guiConfig).format(guiVerses, doc);
             }
 
-            // ---- Maintain unique history (reference + module), most-recently-used first ----
             String trimmed = reference.trim();
             HistoryEntry newEntry = new HistoryEntry(trimmed, selectedModule.getName());
             int existingIdx = referenceHistory.indexOf(newEntry);
@@ -916,11 +990,17 @@ public class Gui extends JFrame {
         return null;
     }
 
+    private void updateMappingRowsEnabled() {
+        boolean useModuleAbbrs = useModuleAbbrsCheckbox.isSelected();
+        mappingFileField.setEnabled(!useModuleAbbrs);
+        mapBrowseButton.setEnabled(!useModuleAbbrs);
+        languageComboBox.setEnabled(!useModuleAbbrs);
+    }
+
     // -----------------------------------------------------------------------
     // Inner classes
     // -----------------------------------------------------------------------
 
-    /** Pairs a reference string with the module name it was looked up in. */
     private static class HistoryEntry {
         final String reference;
         final String moduleName;
@@ -930,7 +1010,6 @@ public class Gui extends JFrame {
             this.moduleName = moduleName;
         }
 
-        /** Shown in the drop-down list */
         @Override
         public String toString() {
             return reference + "  [" + moduleName + "]";
